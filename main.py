@@ -37,7 +37,6 @@ def parse_arguments():
     parser.add_argument('--lora_dropout', type=float, default=0.1, help='LoRa dropout')
     parser.add_argument('--target_modules', nargs='+', default=["query", "value"], help='Target modules')
     args, _ = parser.parse_known_args()
-    parser=argparse.ArgumentParser(parent=[parser])
 
     #argument for model training
     parser.add_argument('--remove_unused_columns', default=False, help='Remove unused columns')
