@@ -26,7 +26,7 @@ def parse_arguments():
     #arguments for model loading
     parser.add_argument('--model_directory', help='Path to the directory containing the model files', default="InstaDeepAI/nucleotide-transformer-v2-50m-multi-species", type=str)
     parser.add_argument('--batch_size', type=int, default=1, help='Batch size')
-    parser.add_argument('--num_labels_promoter', type=int, default=2, help='Number of labels for the promoter')
+    parser.add_argument('--num_labels', type=int, default=2, help='Number of labels for the promoter')
 
     #arguments for LoRa
     parser.add_argument('--task_type', default=TaskType.TOKEN_CLS, help='Task type')
