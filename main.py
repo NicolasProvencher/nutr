@@ -1,15 +1,12 @@
 import argparse
-from transformers import AutoTokenizer, AutoModelForMaskedLM, TrainingArguments, Trainer, AutoModelForTokenClassification, AutoModelForSequenceClassification
+from transformers import AutoTokenizer, AutoModelForMaskedLM, TrainingArguments, Trainer, AutoModelForTokenClassification
 import torch
-from sklearn.metrics import matthews_corrcoef, f1_score
-from sklearn.model_selection import train_test_split
 import matplotlib.pyplot as plt
 import numpy as np
 from peft import LoraConfig, TaskType, get_peft_model
 import pandas as pd
 import wandb
 from datasets import Dataset
-import torch.nn.functional as F
 import os
 
 ###imports
@@ -18,23 +15,30 @@ from utils import compute_metrics_f1_score, tokenise_input_seq_and_labels
 def parse_arguments():
     # Create an ArgumentParser object
     parser = argparse.ArgumentParser(description='Description of your program.')
+
+    #arguments for input
     parser.add_argument('--train_file', help='Train CSV input file', type=str)
     parser.add_argument('--test_file', help='Test CSV input file', type=str)
     parser.add_argument('--val_file', help='Validation input CSV file', type=str)
     parser.add_argument('--separator', default=',', help='Separator of the CSV input file')
     parser.add_argument('--input_sequence_col', default='data', help='Name of the column containing input sequences')
     parser.add_argument('--label_col', default='labels', help='Name of the column containing labels')
+
+    #arguments for model loading
     parser.add_argument('--model_directory', help='Path to the directory containing the model files', type=str)
     parser.add_argument('--batch_size', type=int, default=1, help='Batch size')
     parser.add_argument('--num_labels_promoter', type=int, default=2, help='Number of labels for the promoter')
-    parser.add_argument('--offline_wandb_path', help='Offline wandb path')
-    parser.add_argument('--wandb_project_name', help='Wandb project')
-    parser.add_argument('--wandb_run_name', help='Wandb run name')
+
+    #arguments for LoRa
+    parser.add_argument('--task_type', default=TaskType.TOKEN_CLS, help='Task type')
+    parser.add_argument('--inference_mode', type=bool, default=False, help='Inference mode')
+    parser.add_argument('--r', type=int, default=1, help='R')
+    parser.add_argument('--lora_alpha', type=int, default=32, help='LoRa alpha')
+    parser.add_argument('--lora_dropout', type=float, default=0.1, help='LoRa dropout')
+    parser.add_argument('--target_modules', nargs='+', default=["query", "value"], help='Target modules')
 
 
-
-
-
+    #argument for model training
     parser.add_argument('--remove_unused_columns', default=False, help='Remove unused columns')
     parser.add_argument('--evaluation_strategy', default="steps", help='Evaluation strategy')
     parser.add_argument('--save_strategy', default="steps", help='Save strategy')
@@ -49,19 +53,15 @@ def parse_arguments():
     parser.add_argument('--dataloader_drop_last', default=True, help='Drop last batch in dataloader')
     parser.add_argument('--report_to', default='wandb', help='Report to')
     parser.add_argument('--logging_dir', default="./logs", help='Logging directory')
+
+
+    #arguments for wandb
+    parser.add_argument('--offline_wandb_path', help='Offline wandb path')
+    parser.add_argument('--wandb_project_name', help='Wandb project')
+    parser.add_argument('--wandb_run_name', help='Wandb run name')
     
-    # Add arguments using add_argument() method
-    # Example:
-    # parser.add_argument('-f', '--file', help='Path to input file')
 
-    # Parse the command-line arguments
     args = parser.parse_args()
-
-
-
-
-
-
     return args
 
 
@@ -73,11 +73,12 @@ def main():
     # Parse the command-line arguments
     args = parse_arguments()
     device = torch.device("cuda")
-    num_labels_promoter = args.num_labels_promoter
-    model = AutoModelForTokenClassification.from_pretrained(args.model_directory)
+    model = AutoModelForTokenClassification.from_pretrained(args.model_directory, num_labels=args.num_labels)
     model.to(device)
+
+    #TODO check if target module can vary and why
     peft_config = LoraConfig(
-            task_type=TaskType.TOKEN_CLS, inference_mode=False, r=1, lora_alpha= 32, lora_dropout=0.1, target_modules= ["query", "value"],
+            task_type=args.task_type, inference_mode=args.inference_mode, r=args.r, lora_alpha= args.lora_alpha, lora_dropout=args.lora_dropout, target_modules=args.target_modules,
             )
     lora_classifier = get_peft_model(model, peft_config) # transform our classifier into a peft model
     lora_classifier.print_trainable_parameters()
@@ -85,15 +86,18 @@ def main():
     tokenizer = AutoTokenizer.from_pretrained(args.model_directory)
     max_length = tokenizer.model_max_length
 
-    val = Dataset.from_pandas(pd.read_csv("val_chrm.csv", sep=",", usecols=[sequence_name, 'labels']).iloc[:20])
+    val = Dataset.from_pandas(pd.read_csv(args.val_file, sep=args.separator, usecols=[args.input_sequence_col, args.label_col]))
     val_tok=val.map(tokenise_input_seq_and_labels, fn_kwargs={"label_name": args.label_col, "sequence_name": args.input_sequence_col, "max_length": max_length})
-    val_tok = val_tok.remove_columns(arg.sequence_name)
+    val_tok = val_tok.remove_columns(args.sequence_name)
     
-    train = Dataset.from_pandas(pd.read_csv("train_chrm.csv", sep=",", usecols=[args.sequence_name, 'labels']).iloc[:20])
+    train = Dataset.from_pandas(pd.read_csv("train_chrm.csv", sep=",", usecols=[args.sequence_name, 'labels']))
     train_tok = train.map(tokenise_input_seq_and_labels, fn_kwargs={"label_name": args.label_col, "sequence_name": args.input_sequence_col, "max_length": max_length})
     train_tok = train_tok.remove_columns(args.sequence_name)
+
+
     os.environ['WANDB_DIR'] = args.offline_wandb_path
     wandb.init(mode='offline', project=args.wandb_project_name, name=args.wandb_run_name)
+
     train_args = TrainingArguments(
         f"{args.wandb_project_name}-finetuned-lora-NucleotideTransformer",
         remove_unused_columns=args.remove_unused_columns,
@@ -105,14 +109,16 @@ def main():
         per_device_eval_batch_size= args.batch_size,
         num_train_epochs= args.num_train_epochs,
         logging_steps= args.logging_steps,
-        load_best_model_at_end=args.load_best_model_at_end,  # Keep the best model according to the evaluation
+        load_best_model_at_end=args.load_best_model_at_end, 
         metric_for_best_model=args.metric_for_best_model,
         label_names=args.labels_col,
         dataloader_drop_last=args.dataloader_drop_last,
         #max_steps= 1000,
         report_to=args.report_to,
         logging_dir=args.logging_dir,
+        
         )
+    
     trainer = Trainer(
     model.to(device),
     train_args,
@@ -120,7 +126,9 @@ def main():
     eval_dataset= val,
     tokenizer=tokenizer,
     compute_metrics=compute_metrics_f1_score,
+    
     )
+
     train_results = trainer.train()
     wandb.finish()
     
@@ -128,4 +136,5 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    #main()
+    args=parse_arguments()

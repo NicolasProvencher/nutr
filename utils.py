@@ -1,5 +1,8 @@
-
-
+from transformers import AutoTokenizer
+from sklearn.metrics import matthews_corrcoef, f1_score
+from sklearn.model_selection import train_test_split
+import torch.nn.functional as F
+import numpy as np
 
 def compute_metrics_f1_score(eval_pred):
     """Computes F1 score for binary classification"""
@@ -20,7 +23,7 @@ def compute_metrics_f1_score(eval_pred):
     return r
 
 
-
+#TODO: move tokeniser here from main, add model directory as argument
 def tokenise_input_seq_and_labels(example):
     labels = example['labels']
     new_labels = []
