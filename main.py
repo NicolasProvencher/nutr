@@ -72,6 +72,7 @@ def main():
     # Parse the command-line arguments
     args = parse_arguments()
     device = torch.device("cuda")
+    trust_remote_code = True
     model = AutoModelForTokenClassification.from_pretrained(args.model_directory, num_labels=args.num_labels)
     model.to(device)
 
