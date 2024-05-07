@@ -83,7 +83,7 @@ def main():
     lora_classifier.print_trainable_parameters()
     lora_classifier.to(device) # Put the model on the GPU
 
-    tokenizer = AutoTokenizer.from_pretrained(model)
+    tokenizer = AutoTokenizer.from_pretrained(args.model_directory)
 
 
     val=get_Data(args.val_file, args.separator, args.input_sequence_col, args.label_col, tokenizer)
