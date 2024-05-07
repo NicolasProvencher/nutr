@@ -1,5 +1,5 @@
 import argparse
-from transformers import AutoTokeniser, AutoModelForMaskedLM, TrainingArguments, Trainer, AutoModelForTokenClassification
+from transformers import AutoTokenizer, AutoModelForMaskedLM, TrainingArguments, Trainer, AutoModelForTokenClassification
 import torch
 import matplotlib.pyplot as plt
 from peft import LoraConfig, TaskType, get_peft_model
