@@ -1,0 +1,4 @@
+batch_size : 132
+train_file : 'train_chrm.csv'
+val_file: "val_chrm.csv"
+model_directory: "InstaDeepAI/nucleotide-transformer-v2-50m-multi-species"

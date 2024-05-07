@@ -11,20 +11,26 @@ import sys
 ###imports
 from utils import compute_metrics_f1_score, tokenise_input_seq_and_labels, get_Data
 
+def load_config():
+    # Load arguments from a YAML file
+    with open('config.yml', 'r') as f:
+        config = yaml.safe_load(f)
+    return config
+
 def parse_arguments():
     # Create an ArgumentParser object
     parser = argparse.ArgumentParser(description='Description of your program.')
 
     #arguments for input
-    parser.add_argument('--train_file', help='Train CSV input file', default='train_chrm.csv', type=str)
+    parser.add_argument('--train_file', help='Train CSV input file', type=str)
     parser.add_argument('--test_file', help='Test CSV input file', type=str)
-    parser.add_argument('--val_file', help='Validation input CSV file', default="val_chrm.csv",  type=str)
+    parser.add_argument('--val_file', help='Validation input CSV file',  type=str)
     parser.add_argument('--separator', default=',', help='Separator of the CSV input file')
     parser.add_argument('--input_sequence_col', default='data', help='Name of the column containing input sequences')
     parser.add_argument('--label_col', default='labels', help='Name of the column containing labels')
 
     #arguments for model loading
-    parser.add_argument('--model_directory', help='Path to the directory containing the model files', default="InstaDeepAI/nucleotide-transformer-v2-50m-multi-species", type=str)
+    parser.add_argument('--model_directory', help='Path to the directory containing the model files', type=str)
     parser.add_argument('--batch_size', type=int, default=1, help='Batch size')
     parser.add_argument('--num_labels', type=int, default=2, help='Number of labels for the promoter')
 
@@ -59,11 +65,28 @@ def parse_arguments():
     parser.add_argument('--wandb_project_name', help='Wandb project')
     parser.add_argument('--wandb_run_name', help='Wandb run name')
     
+    config=load_config()
+    args = parser.parse_args(args=[f'--{k}={v}' for k, v in config.items()])
+    return args
+
+import yaml
+import argparse
+
+def parse_arguments():
+    # Load arguments from a YAML file
+    with open('config.yml', 'r') as f:
+        config = yaml.safe_load(f)
+
+    # Create an ArgumentParser object
+    parser = argparse.ArgumentParser(description='Description of your program.')
+
+    # Use the values from the YAML file if they exist, otherwise use the default values
+    parser.add_argument('--model_directory', help='Path to the directory containing the model files', default=config.get('model_directory', "InstaDeepAI/nucleotide-transformer-v2-50m-multi-species"), type=str)
+    parser.add_argument('--batch_size', type=int, default=config.get('batch_size', 1), help='Batch size')
+    # ... repeat for other arguments ...
 
     args = parser.parse_args()
     return args
-
-
 
 
 
@@ -122,7 +145,7 @@ def main():
     compute_metrics=compute_metrics_f1_score,
     
     )
-
+    sys.exit()
     train_results = trainer.train()
     wandb.finish()
     
