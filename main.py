@@ -18,7 +18,7 @@ def parse_arguments():
     #arguments for input
     parser.add_argument('--train_file', help='Train CSV input file', default='train_chrm.csv', type=str)
     parser.add_argument('--test_file', help='Test CSV input file', type=str)
-    parser.add_argument('--val_file', help='Validation input CSV file', default="val_chrm.csv"  type=str)
+    parser.add_argument('--val_file', help='Validation input CSV file', default="val_chrm.csv",  type=str)
     parser.add_argument('--separator', default=',', help='Separator of the CSV input file')
     parser.add_argument('--input_sequence_col', default='data', help='Name of the column containing input sequences')
     parser.add_argument('--label_col', default='labels', help='Name of the column containing labels')
