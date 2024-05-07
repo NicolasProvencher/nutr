@@ -2,7 +2,7 @@ from transformers import AutoTokenizer
 from sklearn.metrics import matthews_corrcoef, f1_score
 from sklearn.model_selection import train_test_split
 import torch.nn.functional as F
-import torch.tensor as tensor
+import torch
 import numpy as np
 from datasets import Dataset
 import pandas as pd
@@ -53,7 +53,7 @@ def tokenise_input_seq_and_labels(example, max_length, tokenizer, label_name, se
                 new_labels.append(0)
     # print(len(new_labels))
     #print(new_labels)
-    labels_tensor = tensor(new_labels)
+    labels_tensor = torch.tensor(new_labels)
     #print(labels_tensor)
     if len(labels_tensor) < max_length:
         labels_tensor = F.pad(labels_tensor, pad=(0, max_length - len(labels_tensor)), value=-100)
