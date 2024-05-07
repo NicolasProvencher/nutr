@@ -66,7 +66,8 @@ def parse_arguments():
     parser.add_argument('--wandb_run_name', help='Wandb run name')
     
     config=load_config()
-    args = parser.parse_args(args=[f'--{k}={v}' for k, v in config.items()])
+    config_args = [f'--{k}={v}' for k, v in config.items() if k in vars(parser.parse_args())]
+    args = parser.parse_args(args=config_args)
     return args
 
 import yaml
