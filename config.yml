@@ -1,3 +1,5 @@
+#File with argument to give main.py to be able to run it correctly without using defualt settings
+
 batch_size : 132
 train_file : 'train_chrm.csv'
 val_file: "val_chrm.csv"

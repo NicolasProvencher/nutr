@@ -4,7 +4,7 @@ import torch
 import matplotlib.pyplot as plt
 from peft import LoraConfig, TaskType, get_peft_model
 import wandb
-
+import yaml
 import os
 import sys
 
@@ -64,15 +64,14 @@ def parse_arguments():
     parser.add_argument('--offline_wandb_path', help='Offline wandb path')
     parser.add_argument('--wandb_project_name', help='Wandb project')
     parser.add_argument('--wandb_run_name', help='Wandb run name')
+
+
+    #load config from yml file
     config=load_config()
-    config_args = [f'--{k}={v}' for k, v in config.items() if k in vars(parser.parse_args())]
-    args = parser.parse_args(args=config_args)
+    args = parser.parse_args(args=[f'--{k}={v}' for k, v in config.items() if k in vars(parser.parse_args())])
     print(args)
 
     return args
-
-import yaml
-import argparse
 
 
 
