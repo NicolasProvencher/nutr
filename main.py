@@ -74,22 +74,6 @@ def parse_arguments():
 import yaml
 import argparse
 
-def parse_arguments():
-    # Load arguments from a YAML file
-    with open('config.yml', 'r') as f:
-        config = yaml.safe_load(f)
-
-    # Create an ArgumentParser object
-    parser = argparse.ArgumentParser(description='Description of your program.')
-
-    # Use the values from the YAML file if they exist, otherwise use the default values
-    parser.add_argument('--model_directory', help='Path to the directory containing the model files', default=config.get('model_directory', "InstaDeepAI/nucleotide-transformer-v2-50m-multi-species"), type=str)
-    parser.add_argument('--batch_size', type=int, default=config.get('batch_size', 1), help='Batch size')
-    # ... repeat for other arguments ...
-
-    args = parser.parse_args()
-    return args
-
 
 
 
