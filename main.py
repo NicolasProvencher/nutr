@@ -43,7 +43,7 @@ def parse_arguments():
     parser.add_argument('--evaluation_strategy', default="steps", help='Evaluation strategy')
     parser.add_argument('--save_strategy', default="steps", help='Save strategy')
     parser.add_argument('--learning_rate', type=float, default=5e-4, help='Learning rate')
-    parser.add_argument('--per_device_train_batch_size', type=int, default=batch_size, help='Per device train batch size')
+    parser.add_argument('--per_device_train_batch_size', type=int, default=args.batch_size, help='Per device train batch size')
     parser.add_argument('--gradient_accumulation_steps', type=int, default=1, help='Gradient accumulation steps')
     parser.add_argument('--per_device_eval_batch_size', type=int, default=1, help='Per device eval batch size')
     parser.add_argument('--num_train_epochs', type=int, default=1, help='Number of training epochs')
