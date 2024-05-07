@@ -94,6 +94,7 @@ def parse_arguments():
 def main():
     # Parse the command-line arguments
     args = parse_arguments()
+    print(args.num_labels)
     device = torch.device("cuda")
     model = AutoModelForTokenClassification.from_pretrained(args.model_directory, num_labels=args.num_labels)
     model.to(device)
