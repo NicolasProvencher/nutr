@@ -36,7 +36,8 @@ def parse_arguments():
     parser.add_argument('--lora_alpha', type=int, default=32, help='LoRa alpha')
     parser.add_argument('--lora_dropout', type=float, default=0.1, help='LoRa dropout')
     parser.add_argument('--target_modules', nargs='+', default=["query", "value"], help='Target modules')
-
+    args, _ = parser.parse_known_args()
+    parser=argparse.ArgumentParser(parent=[parser])
 
     #argument for model training
     parser.add_argument('--remove_unused_columns', default=False, help='Remove unused columns')
@@ -45,7 +46,7 @@ def parse_arguments():
     parser.add_argument('--learning_rate', type=float, default=5e-4, help='Learning rate')
     parser.add_argument('--per_device_train_batch_size', type=int, default=args.batch_size, help='Per device train batch size')
     parser.add_argument('--gradient_accumulation_steps', type=int, default=1, help='Gradient accumulation steps')
-    parser.add_argument('--per_device_eval_batch_size', type=int, default=1, help='Per device eval batch size')
+    parser.add_argument('--per_device_eval_batch_size', type=int, default=64, help='Per device eval batch size')
     parser.add_argument('--num_train_epochs', type=int, default=1, help='Number of training epochs')
     parser.add_argument('--logging_steps', type=int, default=10, help='Logging steps')
     parser.add_argument('--load_best_model_at_end', default=True, help='Load the best model at the end')
