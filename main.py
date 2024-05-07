@@ -72,7 +72,6 @@ def main():
     # Parse the command-line arguments
     args = parse_arguments()
     device = torch.device("cuda")
-    trust_remote_code = True
     model = AutoModelForTokenClassification.from_pretrained(args.model_directory, num_labels=args.num_labels)
     model.to(device)
 
@@ -106,7 +105,7 @@ def main():
         logging_steps= args.logging_steps,
         load_best_model_at_end=args.load_best_model_at_end, 
         metric_for_best_model=args.metric_for_best_model,
-        label_names=args.labels_col,
+        label_names=args.label_col,
         dataloader_drop_last=args.dataloader_drop_last,
         #max_steps= 1000,
         report_to=args.report_to,
