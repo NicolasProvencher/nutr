@@ -1,4 +1,3 @@
-from transformers import AutoTokenizer
 from sklearn.metrics import matthews_corrcoef, f1_score
 from sklearn.model_selection import train_test_split
 import torch.nn.functional as F
@@ -70,8 +69,8 @@ def tokenise_input_seq_and_labels(example, max_length, tokenizer, label_name, se
     return example
 
 
-def get_Data(csv_path, separator, input_sequence_col, label_col, model):
-    tokenizer = AutoTokenizer.from_pretrained(model)
+def get_Data(csv_path, separator, input_sequence_col, label_col, tokeniser):
+
     max_length = tokenizer.model_max_length
     data=Dataset.from_pandas(pd.read_csv(csv_path, sep=separator, usecols=[input_sequence_col, label_col]))
     data=data.map(tokenise_input_seq_and_labels, fn_kwargs={"label_name": label_col, "sequence_name": input_sequence_col, "max_length": max_length, "tokenizer": tokenizer})

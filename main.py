@@ -1,5 +1,5 @@
 import argparse
-from transformers import AutoModelForMaskedLM, TrainingArguments, Trainer, AutoModelForTokenClassification
+from transformers import AutoTokeniser, AutoModelForMaskedLM, TrainingArguments, Trainer, AutoModelForTokenClassification
 import torch
 import matplotlib.pyplot as plt
 from peft import LoraConfig, TaskType, get_peft_model
@@ -83,11 +83,11 @@ def main():
     lora_classifier.print_trainable_parameters()
     lora_classifier.to(device) # Put the model on the GPU
 
+    tokenizer = AutoTokenizer.from_pretrained(model)
 
 
-
-    val=get_Data(args.val_file, args.separator, args.input_sequence_col, args.label_col, args.model_directory)
-    train= get_Data(args.train_file, args.separator, args.input_sequence_col, args.label_col, args.model_directory)
+    val=get_Data(args.val_file, args.separator, args.input_sequence_col, args.label_col, tokenizer)
+    train= get_Data(args.train_file, args.separator, args.input_sequence_col, args.label_col, tokenizer)
 
     #os.environ['WANDB_DIR'] = args.offline_wandb_path
     #wandb.init(mode='offline', project=args.wandb_project_name, name=args.wandb_run_name)
@@ -112,10 +112,7 @@ def main():
         logging_dir=args.logging_dir,
         
         )
-    print(val.shape)
-    print(train.shape)
-    print(train_args)
-    sys.exit()
+
     trainer = Trainer(
     model.to(device),
     train_args,
