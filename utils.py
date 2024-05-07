@@ -69,7 +69,7 @@ def tokenise_input_seq_and_labels(example, max_length, tokenizer, label_name, se
     return example
 
 
-def get_Data(csv_path, separator, input_sequence_col, label_col, tokeniser):
+def get_Data(csv_path, separator, input_sequence_col, label_col, tokenizer):
 
     max_length = tokenizer.model_max_length
     data=Dataset.from_pandas(pd.read_csv(csv_path, sep=separator, usecols=[input_sequence_col, label_col]))
