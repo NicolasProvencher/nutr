@@ -90,8 +90,8 @@ def main():
     val=get_Data(args.val_file, args.separator, args.input_sequence_col, args.label_col, args.model_directory)
     train= get_Data(args.train_file, args.separator, args.input_sequence_col, args.label_col, args.model_directory)
 
-    os.environ['WANDB_DIR'] = args.offline_wandb_path
-    wandb.init(mode='offline', project=args.wandb_project_name, name=args.wandb_run_name)
+    #os.environ['WANDB_DIR'] = args.offline_wandb_path
+    #wandb.init(mode='offline', project=args.wandb_project_name, name=args.wandb_run_name)
 
     train_args = TrainingArguments(
         f"{args.wandb_project_name}-finetuned-lora-NucleotideTransformer",
