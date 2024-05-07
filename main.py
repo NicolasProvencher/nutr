@@ -64,10 +64,11 @@ def parse_arguments():
     parser.add_argument('--offline_wandb_path', help='Offline wandb path')
     parser.add_argument('--wandb_project_name', help='Wandb project')
     parser.add_argument('--wandb_run_name', help='Wandb run name')
-    
     config=load_config()
     config_args = [f'--{k}={v}' for k, v in config.items() if k in vars(parser.parse_args())]
     args = parser.parse_args(args=config_args)
+    print(args)
+
     return args
 
 import yaml
