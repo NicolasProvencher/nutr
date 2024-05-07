@@ -1,25 +1,24 @@
 import argparse
-from transformers import AutoTokenizer, AutoModelForMaskedLM, TrainingArguments, Trainer, AutoModelForTokenClassification
+from transformers import AutoModelForMaskedLM, TrainingArguments, Trainer, AutoModelForTokenClassification
 import torch
 import matplotlib.pyplot as plt
-import numpy as np
 from peft import LoraConfig, TaskType, get_peft_model
-import pandas as pd
 import wandb
-from datasets import Dataset
+
 import os
+import sys
 
 ###imports
-from utils import compute_metrics_f1_score, tokenise_input_seq_and_labels
+from utils import compute_metrics_f1_score, tokenise_input_seq_and_labels, get_Data
 
 def parse_arguments():
     # Create an ArgumentParser object
     parser = argparse.ArgumentParser(description='Description of your program.')
 
     #arguments for input
-    parser.add_argument('--train_file', help='Train CSV input file', type=str)
+    parser.add_argument('--train_file', help='Train CSV input file', default='train_chrm.csv', type=str)
     parser.add_argument('--test_file', help='Test CSV input file', type=str)
-    parser.add_argument('--val_file', help='Validation input CSV file', type=str)
+    parser.add_argument('--val_file', help='Validation input CSV file', default="val_chrm.csv"  type=str)
     parser.add_argument('--separator', default=',', help='Separator of the CSV input file')
     parser.add_argument('--input_sequence_col', default='data', help='Name of the column containing input sequences')
     parser.add_argument('--label_col', default='labels', help='Name of the column containing labels')
@@ -83,17 +82,12 @@ def main():
     lora_classifier = get_peft_model(model, peft_config) # transform our classifier into a peft model
     lora_classifier.print_trainable_parameters()
     lora_classifier.to(device) # Put the model on the GPU
-    tokenizer = AutoTokenizer.from_pretrained(args.model_directory)
-    max_length = tokenizer.model_max_length
 
-    val = Dataset.from_pandas(pd.read_csv(args.val_file, sep=args.separator, usecols=[args.input_sequence_col, args.label_col]))
-    val_tok=val.map(tokenise_input_seq_and_labels, fn_kwargs={"label_name": args.label_col, "sequence_name": args.input_sequence_col, "max_length": max_length})
-    val_tok = val_tok.remove_columns(args.sequence_name)
-    
-    train = Dataset.from_pandas(pd.read_csv("train_chrm.csv", sep=",", usecols=[args.sequence_name, 'labels']))
-    train_tok = train.map(tokenise_input_seq_and_labels, fn_kwargs={"label_name": args.label_col, "sequence_name": args.input_sequence_col, "max_length": max_length})
-    train_tok = train_tok.remove_columns(args.sequence_name)
 
+
+
+    val=get_Data(args.val_file, args.separator, args.input_sequence_col, args.label_col, args.model_directory)
+    train= get_Data(args.train_file, args.separator, args.input_sequence_col, args.label_col, args.model_directory)
 
     os.environ['WANDB_DIR'] = args.offline_wandb_path
     wandb.init(mode='offline', project=args.wandb_project_name, name=args.wandb_run_name)
@@ -118,7 +112,10 @@ def main():
         logging_dir=args.logging_dir,
         
         )
-    
+    print(val.shape)
+    print(train.shape)
+    print(train_args)
+    sys.exit()
     trainer = Trainer(
     model.to(device),
     train_args,
@@ -136,5 +133,4 @@ def main():
 
 
 if __name__ == '__main__':
-    #main()
-    args=parse_arguments()
+    main()

@@ -3,6 +3,9 @@ from sklearn.metrics import matthews_corrcoef, f1_score
 from sklearn.model_selection import train_test_split
 import torch.nn.functional as F
 import numpy as np
+from datasets import Dataset
+import pandas as pd
+
 
 def compute_metrics_f1_score(eval_pred):
     """Computes F1 score for binary classification"""
@@ -23,16 +26,19 @@ def compute_metrics_f1_score(eval_pred):
     return r
 
 
-#TODO: move tokeniser here from main, add model directory as argument
-def tokenise_input_seq_and_labels(example):
+
+
+
+
+def tokenise_input_seq_and_labels(example, max_lenght, tokenizer, label_name, sequence_name):
+    
     labels = example['labels']
     new_labels = []
     for i in range(0, len(labels), 6):
         segment = labels[i:i+6]
         if '1' in segment:
             new_labels.append(1)
-        else:
-            new_labels.append(0)
+        else:            new_labels.append(0)
     # print(len(labels)/6)
     # print(len(labels) % 6)
     # print(len(new_labels))
@@ -61,3 +67,12 @@ def tokenise_input_seq_and_labels(example):
     # print(type(example))
     
     return example
+
+
+def get_Data(csv_path, separator, input_sequence_col, label_col, model):
+    tokenizer = AutoTokenizer.from_pretrained(model)
+    max_length = tokenizer.model_max_length
+    data=Dataset.from_pandas(pd.read_csv(csv_path, sep=separator, usecols=[input_sequence_col, label_col]))
+    data=data.map(tokenise_input_seq_and_labels, fn_kwargs={"label_name": label_col, "sequence_name": input_sequence_col, "max_length": max_length, "tokenizer": tokenizer})
+    data = data.remove_columns(input_sequence_col)
+    return data
