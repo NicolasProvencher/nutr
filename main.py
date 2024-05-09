@@ -9,7 +9,7 @@ import os
 import sys
 
 ###imports
-from utils import prepare_metrics, f1_score, roc_auc, pr_auc, tokenise_input_seq_and_labels, get_Data
+from utils import tokenise_input_seq_and_labels, get_Data, compute_metrics
 
 def load_config():
     # Load arguments from a YAML file
@@ -128,7 +128,7 @@ def main():
     train_dataset= train,
     eval_dataset= val,
     tokenizer=tokenizer,
-    compute_metrics=f1_score(prepare_metrics()),
+    compute_metrics=compute_metrics,
     )
     train_results = trainer.train()
     wandb.finish()

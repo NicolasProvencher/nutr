@@ -7,44 +7,31 @@ from datasets import Dataset
 import pandas as pd
 
 
-def prepare_metrics(eval_pred):
-    """Computes F1 score for binary classification"""
+
+
+
+def compute_metrics(eval_pred):
+        """Computes F1 score for binary classification"""
     predictions, references = eval_pred.predictions, eval_pred.label_ids
     prediction_np = predictions  # Convert tensor to numpy array
     reference_np = references  # Convert tensor to numpy array
 
-    np.savetxt('prediction.txt', prediction_np)
+    np.savetxt('prediction.txt', np.argmax(prediction_np, axis= -1))
     np.savetxt('reference.txt', reference_np)
     predictions = np.argmax(predictions, axis=-1).flatten()
     references = references.flatten()
+    precision, recall, _ = precision_recall_curve(references, predictions)
+    auc_score = auc(recall, precision)
     # print(f'prediction 2 {predictions}')
     # print(len(predictions))
     # print(f'reference 2 {references}')
     # print(len(references))
-    return predictions, references
+    r = {'rocauc': roc_auc_score(references, predictions),
+        'f1_score': f1_score(references, predictions, average='micro'),
+        'pr_auc': auc_score
+        }
 
 
-
-
-def f1_score(references, predictions):
-    r = {'f1_score': f1_score(references, predictions, average='micro')}
-
-    return r
-
-def compute_metrics(references, predictions):
-    r = {'f1_score': f1_score(references, predictions, average='micro')}
-
-    return r
-
-def roc_auc(references, predictions):
-    r = {'rocauc': roc_auc_score(references, predictions)}
-
-    return r
-def pr_auc(references, predictions):
-
-    precision, recall, _ = precision_recall_curve(testy, pos_probs)
-    auc_score = auc(recall, precision)
-    return auc_score
 
 
 
