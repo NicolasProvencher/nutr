@@ -11,7 +11,7 @@ import pandas as pd
 
 
 def compute_metrics(eval_pred):
-        """Computes F1 score for binary classification"""
+    """Computes F1 score for binary classification"""
     predictions, references = eval_pred.predictions, eval_pred.label_ids
     prediction_np = predictions  # Convert tensor to numpy array
     reference_np = references  # Convert tensor to numpy array
