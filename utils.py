@@ -13,11 +13,13 @@ import pandas as pd
 def compute_metrics(eval_pred):
     """Computes F1 score for binary classification"""
     predictions, references = eval_pred.predictions, eval_pred.label_ids
-    prediction_np = predictions  # Convert tensor to numpy array
-    reference_np = references  # Convert tensor to numpy array
 
-    np.savetxt('prediction.txt', np.argmax(prediction_np, axis= -1))
-    np.savetxt('reference.txt', reference_np)
+    mask = references != -100
+    predictions = predictions[mask]
+    references = references[mask]
+
+    np.savetxt('prediction.txt', np.argmax(predictions, axis= -1))
+    np.savetxt('reference.txt', references)
     predictions = np.argmax(predictions, axis=-1).flatten()
     references = references.flatten()
     precision, recall, _ = precision_recall_curve(references, predictions)
