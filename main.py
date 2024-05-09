@@ -61,7 +61,7 @@ def parse_arguments():
 
 
     #arguments for wandb
-    parser.add_argument('--offline_wandb_path', default='/home/roucoulab,Desktop/wandb' help='Offline wandb path')
+    parser.add_argument('--offline_wandb_path', default='/home/roucoulab,Desktop/wandb', help='Offline wandb path')
     parser.add_argument('--wandb_project_name', help='Wandb project')
     parser.add_argument('--wandb_run_name', help='Wandb run name')
 
