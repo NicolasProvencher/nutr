@@ -9,7 +9,7 @@ import os
 import sys
 
 ###imports
-from utils import prepare_metrics, f1_score, rocauc, prauc, tokenise_input_seq_and_labels, get_Data
+from utils import prepare_metrics, f1_score, roc_auc, pr_auc, tokenise_input_seq_and_labels, get_Data
 
 def load_config():
     # Load arguments from a YAML file

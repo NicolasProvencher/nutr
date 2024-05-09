@@ -1,4 +1,4 @@
-from sklearn.metrics import matthews_corrcoef, f1_score
+from sklearn.metrics import matthews_corrcoef, f1_score, roc_auc_score, precision_recall_curve, auc
 from sklearn.model_selection import train_test_split
 import torch.nn.functional as F
 import torch
@@ -36,8 +36,15 @@ def compute_metrics(references, predictions):
 
     return r
 
+def roc_auc(references, predictions):
+    r = {'rocauc': roc_auc_score(references, predictions)}
 
+    return r
+def pr_auc(references, predictions):
 
+    precision, recall, _ = precision_recall_curve(testy, pos_probs)
+    auc_score = auc(recall, precision)
+    return auc_score
 
 
 
