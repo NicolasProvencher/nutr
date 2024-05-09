@@ -7,7 +7,7 @@ from datasets import Dataset
 import pandas as pd
 
 
-def compute_metrics_f1_score(eval_pred):
+def prepare_metrics(eval_pred):
     """Computes F1 score for binary classification"""
     predictions, references = eval_pred.predictions, eval_pred.label_ids
     prediction_np = predictions  # Convert tensor to numpy array
@@ -17,10 +17,21 @@ def compute_metrics_f1_score(eval_pred):
     np.savetxt('reference.txt', reference_np)
     predictions = np.argmax(predictions, axis=-1).flatten()
     references = references.flatten()
-    print(f'prediction 2 {predictions}')
-    print(len(predictions))
-    print(f'reference 2 {references}')
-    print(len(references))
+    # print(f'prediction 2 {predictions}')
+    # print(len(predictions))
+    # print(f'reference 2 {references}')
+    # print(len(references))
+    return predictions, references
+
+
+
+
+def f1_score(references, predictions):
+    r = {'f1_score': f1_score(references, predictions, average='micro')}
+
+    return r
+
+def compute_metrics(references, predictions):
     r = {'f1_score': f1_score(references, predictions, average='micro')}
 
     return r

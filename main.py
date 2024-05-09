@@ -9,7 +9,7 @@ import os
 import sys
 
 ###imports
-from utils import compute_metrics_f1_score, tokenise_input_seq_and_labels, get_Data
+from utils import prepare_metrics, f1_score, rocauc, prauc, tokenise_input_seq_and_labels, get_Data
 
 def load_config():
     # Load arguments from a YAML file
@@ -61,7 +61,7 @@ def parse_arguments():
 
 
     #arguments for wandb
-    parser.add_argument('--offline_wandb_path', help='Offline wandb path')
+    parser.add_argument('--offline_wandb_path', default='/home/roucoulab,Desktop/wandb' help='Offline wandb path')
     parser.add_argument('--wandb_project_name', help='Wandb project')
     parser.add_argument('--wandb_run_name', help='Wandb run name')
 
@@ -98,8 +98,8 @@ def main():
     val=get_Data(args.val_file, args.separator, args.input_sequence_col, args.label_col, tokenizer)
     train= get_Data(args.train_file, args.separator, args.input_sequence_col, args.label_col, tokenizer)
 
-    #os.environ['WANDB_DIR'] = args.offline_wandb_path
-    #wandb.init(mode='offline', project=args.wandb_project_name, name=args.wandb_run_name)
+    os.environ['WANDB_DIR'] = args.offline_wandb_path
+    wandb.init(mode='offline', project=args.wandb_project_name, name=args.wandb_run_name)
 
     train_args = TrainingArguments(
         f"{args.wandb_project_name}-finetuned-lora-NucleotideTransformer",
@@ -128,10 +128,8 @@ def main():
     train_dataset= train,
     eval_dataset= val,
     tokenizer=tokenizer,
-    compute_metrics=compute_metrics_f1_score,
-    
+    compute_metrics=f1_score(prepare_metrics()),
     )
-    sys.exit()
     train_results = trainer.train()
     wandb.finish()
     
