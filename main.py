@@ -93,44 +93,44 @@ def main():
     lora_classifier.to(device) # Put the model on the GPU
 
     tokenizer = AutoTokenizer.from_pretrained(args.model_directory)
-
-
-    val=get_Data(args.val_file, args.separator, args.input_sequence_col, args.label_col, tokenizer)
-    train= get_Data(args.train_file, args.separator, args.input_sequence_col, args.label_col, tokenizer)
-
     os.environ['WANDB_DIR'] = args.offline_wandb_path
     wandb.init(mode='offline', project=args.wandb_project_name, name=args.wandb_run_name)
 
-    train_args = TrainingArguments(
-        f"{args.wandb_project_name}-finetuned-lora-NucleotideTransformer",
-        remove_unused_columns=args.remove_unused_columns,
-        evaluation_strategy=args.evaluation_strategy,
-        save_strategy=args.save_strategy,
-        learning_rate=args.learning_rate,
-        per_device_train_batch_size=args.batch_size,
-        gradient_accumulation_steps= args.gradient_accumulation_steps,
-        per_device_eval_batch_size= args.batch_size,
-        num_train_epochs= args.num_train_epochs,
-        logging_steps= args.logging_steps,
-        load_best_model_at_end=args.load_best_model_at_end, 
-        metric_for_best_model=args.metric_for_best_model,
-        label_names=args.label_col,
-        dataloader_drop_last=args.dataloader_drop_last,
-        #max_steps= 1000,
-        report_to=args.report_to,
-        logging_dir=args.logging_dir,
-        
-        )
+    for split in range(1, 2):
+        train, val, test=get_Data(args.input_file, args.separator, args.input_sequence_col, args.label_col, tokenizer, args.chrm_split, split)
 
-    trainer = Trainer(
-    model.to(device),
-    train_args,
-    train_dataset= train,
-    eval_dataset= val,
-    tokenizer=tokenizer,
-    compute_metrics=compute_metrics,
-    )
-    train_results = trainer.train()
+
+
+        train_args = TrainingArguments(
+            f"{args.wandb_project_name}-finetuned-lora-NucleotideTransformer",
+            remove_unused_columns=args.remove_unused_columns,
+            evaluation_strategy=args.evaluation_strategy,
+            save_strategy=args.save_strategy,
+            learning_rate=args.learning_rate,
+            per_device_train_batch_size=args.batch_size,
+            gradient_accumulation_steps= args.gradient_accumulation_steps,
+            per_device_eval_batch_size= args.batch_size,
+            num_train_epochs= args.num_train_epochs,
+            logging_steps= args.logging_steps,
+            load_best_model_at_end=args.load_best_model_at_end, 
+            metric_for_best_model=args.metric_for_best_model,
+            label_names=args.label_col,
+            dataloader_drop_last=args.dataloader_drop_last,
+            #max_steps= 1000,
+            report_to=args.report_to,
+            logging_dir=args.logging_dir,
+            
+            )
+
+        trainer = Trainer(
+        model.to(device),
+        train_args,
+        train_dataset= train,
+        eval_dataset= val,
+        tokenizer=tokenizer,
+        compute_metrics=compute_metrics,
+        )
+        train_results = trainer.train()
     wandb.finish()
     
 

@@ -1,5 +1,5 @@
-from sklearn.metrics import matthews_corrcoef, f1_score, roc_auc_score, precision_recall_curve, auc
-from sklearn.model_selection import train_test_split
+from sklearn.metrics import matthews_corrcoef, roc_auc_score, precision_recall_curve, auc
+from sklearn.model_selection import train_test_chrm_split
 import torch.nn.functional as F
 import torch
 import numpy as np
@@ -29,11 +29,9 @@ def compute_metrics(eval_pred):
     # print(f'reference 2 {references}')
     # print(len(references))
     r = {'rocauc': roc_auc_score(references, predictions),
-        'f1_score': f1_score(references, predictions, average='micro'),
         'pr_auc': auc_score
         }
-
-
+    return r
 
 
 
@@ -76,10 +74,26 @@ def tokenise_input_seq_and_labels(example, max_length, tokenizer, label_name, se
     return example
 
 
-def get_Data(csv_path, separator, input_sequence_col, label_col, tokenizer):
-
+def get_Data(csv_path, separator, input_sequence_col, label_col, tokenizer, chrm_split, split):
     max_length = tokenizer.model_max_length
-    data=Dataset.from_pandas(pd.read_csv(csv_path, sep=separator, usecols=[input_sequence_col, label_col]))
-    data=data.map(tokenise_input_seq_and_labels, fn_kwargs={"label_name": label_col, "sequence_name": input_sequence_col, "max_length": max_length, "tokenizer": tokenizer})
-    data = data.remove_columns(input_sequence_col)
-    return data
+    df = pd.read_csv(csv_path, sep=separator, usecols=[input_sequence_col, label_col])
+
+    # chrm_split dict should be in the form:
+    # chrm_split={
+    #     1:{'train':[],
+    #         'val':[],
+    #         'test':[]},
+    #     2:{'train':[],
+    #         'val':[],
+    #         'test':[]},}
+
+
+    train = Dataset.from_pandas(df.loc[df['chrm'].isin(chrm_split[split]['train'])])
+    val = Dataset.from_pandas(df.loc[df['chrm'].isin(chrm_split[split]['val'])])
+    test = Dataset.from_pandas(df.loc[df['chrm'].isin(chrm_split[split]['test'])])
+    for i in [train, val, test]:
+        i = i.map(tokenise_input_seq_and_labels, fn_kwargs={"label_name": label_col, "sequence_name": input_sequence_col, "max_length": max_length, "tokenizer": tokenizer})
+        i = i.remove_columns(input_sequence_col)
+    return train, val, test
+
+
