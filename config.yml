@@ -1,6 +1,18 @@
 #File with argument to give main.py to be able to run it correctly without using defualt settings
 
 batch_size : 132
-train_file : 'train_chrm.csv'
-val_file: "val_chrm.csv"
+input_file : "nutr_data_test.csv"
 model_directory: "InstaDeepAI/nucleotide-transformer-v2-50m-multi-species"
+chrm_split:
+  1:
+    train: ["3", "5", "7", "11', "13", "15", "19", "21", 'X']
+    val: ["1", '9', "17"]
+    test: ['2', '4', '6', '8', '10', '12', '14', '16', '18', '20', '22', 'Y']
+  2:
+    train: ['2', '6', '8', '10', '14', '16', '18', '22', 'Y']
+    val: ['4','12', '20']
+    test: ['1', '3', '5', '7', '9', '11', '13', '15', '17', '19', '21', 'X']
+
+
+wandb_project_name: 'narval test'
+wandb_run_name: 'test1'

@@ -22,9 +22,8 @@ def parse_arguments():
     parser = argparse.ArgumentParser(description='Description of your program.')
 
     #arguments for input
-    parser.add_argument('--train_file', help='Train CSV input file', type=str)
-    parser.add_argument('--test_file', help='Test CSV input file', type=str)
-    parser.add_argument('--val_file', help='Validation input CSV file',  type=str)
+    parser.add_argument('--input_file', help='Train CSV input file', type=str)
+    parser.add_argument('--chrm_split', help='Chromosome split', type=dict)
     parser.add_argument('--separator', default=',', help='Separator of the CSV input file')
     parser.add_argument('--input_sequence_col', default='data', help='Name of the column containing input sequences')
     parser.add_argument('--label_col', default='labels', help='Name of the column containing labels')
@@ -45,19 +44,20 @@ def parse_arguments():
 
     #argument for model training
     parser.add_argument('--remove_unused_columns', default=False, help='Remove unused columns')
-    parser.add_argument('--evaluation_strategy', default="steps", help='Evaluation strategy')
-    parser.add_argument('--save_strategy', default="steps", help='Save strategy')
+    parser.add_argument('--evaluation_strategy', default="epoch", help='Evaluation strategy')
+    parser.add_argument('--save_strategy', default="epoch", help='Save strategy')
     parser.add_argument('--learning_rate', type=float, default=5e-4, help='Learning rate')
     parser.add_argument('--per_device_train_batch_size', type=int, default=args.batch_size, help='Per device train batch size')
     parser.add_argument('--gradient_accumulation_steps', type=int, default=1, help='Gradient accumulation steps')
     parser.add_argument('--per_device_eval_batch_size', type=int, default=64, help='Per device eval batch size')
     parser.add_argument('--num_train_epochs', type=int, default=1, help='Number of training epochs')
-    parser.add_argument('--logging_steps', type=int, default=10, help='Logging steps')
+    parser.add_argument('--logging_steps', type=int, default=1, help='Logging steps')
     parser.add_argument('--load_best_model_at_end', default=True, help='Load the best model at the end')
-    parser.add_argument('--metric_for_best_model', default="f1_score", help='Metric for best model')
+    parser.add_argument('--metric_for_best_model', default="pr_auc", help='Metric for best model')
     parser.add_argument('--dataloader_drop_last', default=True, help='Drop last batch in dataloader')
     parser.add_argument('--report_to', default='wandb', help='Report to')
     parser.add_argument('--logging_dir', default="./logs", help='Logging directory')
+    parser.add_argument('--output_dir', default="./output", help='Output directory')
 
 
     #arguments for wandb
@@ -81,57 +81,62 @@ def main():
     args = parse_arguments()
     print(args.num_labels)
     device = torch.device("cuda")
-    model = AutoModelForTokenClassification.from_pretrained(args.model_directory, num_labels=args.num_labels)
-    model.to(device)
 
-    #TODO check if target module can vary and why
-    peft_config = LoraConfig(
-            task_type=args.task_type, inference_mode=args.inference_mode, r=args.r, lora_alpha= args.lora_alpha, lora_dropout=args.lora_dropout, target_modules=args.target_modules,
-            )
-    lora_classifier = get_peft_model(model, peft_config) # transform our classifier into a peft model
-    lora_classifier.print_trainable_parameters()
-    lora_classifier.to(device) # Put the model on the GPU
-
-    tokenizer = AutoTokenizer.from_pretrained(args.model_directory)
     os.environ['WANDB_DIR'] = args.offline_wandb_path
     wandb.init(mode='offline', project=args.wandb_project_name, name=args.wandb_run_name)
+    try:
+        for split in range(1, 2):
+            model = AutoModelForTokenClassification.from_pretrained(args.model_directory, num_labels=args.num_labels)
+            model.to(device)
 
-    for split in range(1, 2):
-        train, val, test=get_Data(args.input_file, args.separator, args.input_sequence_col, args.label_col, tokenizer, args.chrm_split, split)
+            #TODO check if target module can vary and why
+            peft_config = LoraConfig(
+                    task_type=args.task_type, inference_mode=args.inference_mode, r=args.r, lora_alpha= args.lora_alpha, lora_dropout=args.lora_dropout, target_modules=args.target_modules,
+                    )
+            lora_classifier = get_peft_model(model, peft_config) # transform our classifier into a peft model
+            lora_classifier.print_trainable_parameters()
+            lora_classifier.to(device) # Put the model on the GPU
+
+            tokenizer = AutoTokenizer.from_pretrained(args.model_directory)
+            train, val, test=get_Data(args.input_file, args.separator, args.input_sequence_col, args.label_col, tokenizer, args.chrm_split, split)
 
 
 
-        train_args = TrainingArguments(
-            f"{args.wandb_project_name}-finetuned-lora-NucleotideTransformer",
-            remove_unused_columns=args.remove_unused_columns,
-            evaluation_strategy=args.evaluation_strategy,
-            save_strategy=args.save_strategy,
-            learning_rate=args.learning_rate,
-            per_device_train_batch_size=args.batch_size,
-            gradient_accumulation_steps= args.gradient_accumulation_steps,
-            per_device_eval_batch_size= args.batch_size,
-            num_train_epochs= args.num_train_epochs,
-            logging_steps= args.logging_steps,
-            load_best_model_at_end=args.load_best_model_at_end, 
-            metric_for_best_model=args.metric_for_best_model,
-            label_names=args.label_col,
-            dataloader_drop_last=args.dataloader_drop_last,
-            #max_steps= 1000,
-            report_to=args.report_to,
-            logging_dir=args.logging_dir,
-            
+            train_args = TrainingArguments(
+                f"{args.wandb_project_name}-finetuned-lora-NucleotideTransformer",
+                output_dir=args.output_dir,
+                remove_unused_columns=args.remove_unused_columns,
+                evaluation_strategy=args.evaluation_strategy,
+                save_strategy=args.save_strategy,
+                learning_rate=args.learning_rate,
+                per_device_train_batch_size=args.batch_size,
+                gradient_accumulation_steps= args.gradient_accumulation_steps,
+                per_device_eval_batch_size= args.batch_size,
+                num_train_epochs= args.num_train_epochs,
+                logging_steps= args.logging_steps,
+                load_best_model_at_end=args.load_best_model_at_end, 
+                metric_for_best_model=args.metric_for_best_model,
+                label_names=args.label_col,
+                dataloader_drop_last=args.dataloader_drop_last,
+                #max_steps= 1000,
+                report_to=args.report_to,
+                logging_dir=args.logging_dir,
+                
+                )
+
+            trainer = Trainer(
+            model.to(device),
+            train_args,
+            train_dataset= train,
+            eval_dataset= val,
+            tokenizer=tokenizer,
+            compute_metrics=compute_metrics,
             )
-
-        trainer = Trainer(
-        model.to(device),
-        train_args,
-        train_dataset= train,
-        eval_dataset= val,
-        tokenizer=tokenizer,
-        compute_metrics=compute_metrics,
-        )
-        train_results = trainer.train()
-    wandb.finish()
+            train_results = trainer.train()
+    except Exception as e:
+        print(e)
+    finally:
+        wandb.finish()
     
 
 
