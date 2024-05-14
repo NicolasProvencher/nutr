@@ -23,7 +23,6 @@ def parse_arguments():
 
     #arguments for input
     parser.add_argument('--input_file', help='Train CSV input file', type=str)
-    parser.add_argument('--chrm_split', help='Chromosome split', type=dict)
     parser.add_argument('--separator', default=',', help='Separator of the CSV input file')
     parser.add_argument('--input_sequence_col', default='data', help='Name of the column containing input sequences')
     parser.add_argument('--label_col', default='labels', help='Name of the column containing labels')
@@ -61,7 +60,7 @@ def parse_arguments():
 
 
     #arguments for wandb
-    parser.add_argument('--offline_wandb_path', default='/home/roucoulab/Desktop/wandb', help='Offline wandb path')
+    parser.add_argument('--offline_wandb_path', help='Offline wandb path')
     parser.add_argument('--wandb_project_name', help='Wandb project')
     parser.add_argument('--wandb_run_name', help='Wandb run name')
 
@@ -69,7 +68,8 @@ def parse_arguments():
     #load config from yml file
     config=load_config()
     args = parser.parse_args(args=[f'--{k}={v}' for k, v in config.items() if k in vars(parser.parse_args())])
-    print(args)
+    args.chrm_split = config['chrm_split']
+
 
     return args
 
@@ -98,7 +98,7 @@ def main():
             lora_classifier.to(device) # Put the model on the GPU
 
             tokenizer = AutoTokenizer.from_pretrained(args.model_directory)
-            train, val, test=get_Data(args.input_file, args.separator, args.input_sequence_col, args.label_col, tokenizer, args.chrm_split, split)
+            train, val, test=get_Data(args.input_file, args.separator, args.input_sequence_col, args.label_col, tokenizer, chrm_split, split)
 
 
 
