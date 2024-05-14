@@ -75,7 +75,7 @@ def tokenise_input_seq_and_labels(example, max_length, tokenizer, label_name, se
 
 def get_Data(csv_path, separator, input_sequence_col, label_col, tokenizer, chrm_split, split):
     max_length = tokenizer.model_max_length
-    df = pd.read_csv(csv_path, sep=separator, usecols=[input_sequence_col, label_col])
+    df = pd.read_csv(csv_path, sep=separator, usecols=[input_sequence_col, label_col, 'chrm'])
 
     # chrm_split dict should be in the form:
     # chrm_split={
