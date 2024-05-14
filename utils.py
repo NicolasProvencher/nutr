@@ -94,7 +94,7 @@ def get_Data(csv_path, separator, input_sequence_col, label_col, tokenizer, chrm
     }
     for name, dataset in datasets.items():
         datasets[name] = dataset.map(tokenise_input_seq_and_labels, fn_kwargs={"label_name": label_col, "sequence_name": input_sequence_col, "max_length": max_length, "tokenizer": tokenizer})
-        datasets[name] = datasets[name].remove_columns([input_sequence_col, '__index_level_0__', 'chrm', label_col])
+        datasets[name] = datasets[name].remove_columns([input_sequence_col, '__index_level_0__', 'chrm'])
     return datasets['train'], datasets['val'], datasets['test']
 
 # from transformers import Trainer, TrainingArguments
