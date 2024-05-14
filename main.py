@@ -11,9 +11,9 @@ import traceback
 ###imports
 from utils import tokenise_input_seq_and_labels, get_Data, compute_metrics
 
-def load_config():
+def load_config(config_file):
     # Load arguments from a YAML file
-    with open('config.yml', 'r') as f:
+    with open(config_file, 'r') as f:
         config = yaml.safe_load(f)
     return config
 
@@ -21,7 +21,11 @@ def parse_arguments():
     # Create an ArgumentParser object
     parser = argparse.ArgumentParser(description='Description of your program.')
 
+    parser.add_argument('--config_file', help='Path to the config file', type=str)
+    args, _ = parser.parse_known_args()
+
     #arguments for input
+    parser.add_argument('--config_file', help='Path to the config file', type=str)
     parser.add_argument('--input_file', help='Train CSV input file', type=str)
     parser.add_argument('--separator', default=',', help='Separator of the CSV input file')
     parser.add_argument('--input_sequence_col', default='data', help='Name of the column containing input sequences')
@@ -65,8 +69,8 @@ def parse_arguments():
     parser.add_argument('--wandb_run_name', help='Wandb run name')
 
 
-    #load config from yml file
-    config=load_config()
+    #load config from yml file\
+    config=load_config(args.config_file)
     args = parser.parse_args(args=[f'--{k}={v}' for k, v in config.items() if k in vars(parser.parse_args())])
     args.chrm_split = config['chrm_split']
 
