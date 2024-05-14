@@ -86,7 +86,7 @@ def main():
     wandb.init(mode='offline', project=args.wandb_project_name, name=args.wandb_run_name)
     try:
         for split in range(1, 2):
-            model = AutoModelForTokenClassification.from_pretrained(args.model_directory, num_labels=args.num_labels)
+            model = AutoModelForTokenClassification.from_pretrained(args.model_directory, num_labels=args.num_labels, trust_remote_code=True)
             model.to(device)
 
             #TODO check if target module can vary and why
@@ -97,7 +97,7 @@ def main():
             lora_classifier.print_trainable_parameters()
             lora_classifier.to(device) # Put the model on the GPU
 
-            tokenizer = AutoTokenizer.from_pretrained(args.model_directory)
+            tokenizer = AutoTokenizer.from_pretrained(args.model_directory,trust_remote_code=True)
             train, val, test=get_Data(args.input_file, args.separator, args.input_sequence_col, args.label_col, tokenizer, chrm_split, split)
 
 
