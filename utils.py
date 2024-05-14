@@ -93,6 +93,7 @@ def get_Data(csv_path, separator, input_sequence_col, label_col, tokenizer, chrm
     for i in [train, val, test]:
         i = i.map(tokenise_input_seq_and_labels, fn_kwargs={"label_name": label_col, "sequence_name": input_sequence_col, "max_length": max_length, "tokenizer": tokenizer})
         i = i.remove_columns(input_sequence_col)
+        i=i.remove_columns('chrm')
     return train, val, test
 
 
