@@ -87,15 +87,16 @@ def get_Data(csv_path, separator, input_sequence_col, label_col, tokenizer, chrm
     #         'test':[]},}
 
 
-    train = Dataset.from_pandas(df.loc[df['chrm'].isin(chrm_split[split]['train'])])
-    val = Dataset.from_pandas(df.loc[df['chrm'].isin(chrm_split[split]['val'])])
-    test = Dataset.from_pandas(df.loc[df['chrm'].isin(chrm_split[split]['test'])])
-    for i in [train, val, test]:
-        i = i.map(tokenise_input_seq_and_labels, fn_kwargs={"label_name": label_col, "sequence_name": input_sequence_col, "max_length": max_length, "tokenizer": tokenizer})
-        i = i.remove_columns(input_sequence_col)
-        i=i.remove_columns('chrm')
-    return train, val, test
-
+    datasets = {
+        'train': Dataset.from_pandas(df.loc[df['chrm'].isin(chrm_split[split]['train'])]),
+        'val': Dataset.from_pandas(df.loc[df['chrm'].isin(chrm_split[split]['val'])]),
+        'test': Dataset.from_pandas(df.loc[df['chrm'].isin(chrm_split[split]['test'])])
+    }
+    for name, dataset in datasets.items():
+        datasets[name] = dataset.map(tokenise_input_seq_and_labels, fn_kwargs={"label_name": label_col, "sequence_name": input_sequence_col, "max_length": max_length, "tokenizer": tokenizer})
+        datasets[name] = datasets[name].remove_columns(input_sequence_col)
+        datasets[name] = datasets[name].remove_columns('chrm')
+    return datasets['train'], datasets['val'], datasets['test']
 
 # from transformers import Trainer, TrainingArguments
 # from transformers.modeling_utils import unwrap_model
