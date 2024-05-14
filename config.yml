@@ -16,3 +16,7 @@ chrm_split:
 
 wandb_project_name: 'narval test'
 wandb_run_name: 'test1'
+offline_wandb_path: 'path/to/wandb/offline'
+logging_dir: 'path/to/logging/dir'
+output_dir: 'path/to/output/dir'
+model_dir: 'path/to/model/dir'

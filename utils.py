@@ -1,5 +1,4 @@
 from sklearn.metrics import matthews_corrcoef, roc_auc_score, precision_recall_curve, auc
-from sklearn.model_selection import train_test_chrm_split
 import torch.nn.functional as F
 import torch
 import numpy as np
