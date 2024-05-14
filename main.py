@@ -98,7 +98,7 @@ def main():
             lora_classifier.to(device) # Put the model on the GPU
 
             tokenizer = AutoTokenizer.from_pretrained(args.model_directory,trust_remote_code=True)
-            train, val, test=get_Data(args.input_file, args.separator, args.input_sequence_col, args.label_col, tokenizer, chrm_split, split)
+            train, val, test=get_Data(args.input_file, args.separator, args.input_sequence_col, args.label_col, tokenizer, args.chrm_split, split)
 
 
 
