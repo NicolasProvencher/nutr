@@ -57,6 +57,7 @@ def parse_arguments():
     parser.add_argument('--report_to', default='wandb', help='Report to')
     parser.add_argument('--logging_dir', default="./logs", help='Logging directory')
     parser.add_argument('--output_dir', default="./output", help='Output directory')
+    #TODO implement auto_find_batch_size for autofind batch size
 
 
     #arguments for wandb
@@ -89,13 +90,12 @@ def main():
             model = AutoModelForTokenClassification.from_pretrained(args.model_directory, num_labels=args.num_labels, trust_remote_code=True)
             model.to(device)
 
-            #TODO check if target module can vary and why
             peft_config = LoraConfig(
                     task_type=args.task_type, inference_mode=args.inference_mode, r=args.r, lora_alpha= args.lora_alpha, lora_dropout=args.lora_dropout, target_modules=args.target_modules,
                     )
             lora_classifier = get_peft_model(model, peft_config) # transform our classifier into a peft model
             lora_classifier.print_trainable_parameters()
-            lora_classifier.to(device) # Put the model on the GPU
+            lora_classifier.to(device)
 
             tokenizer = AutoTokenizer.from_pretrained(args.model_directory,trust_remote_code=True)
             train, val, test=get_Data(args.input_file, args.separator, args.input_sequence_col, args.label_col, tokenizer, args.chrm_split, split)
