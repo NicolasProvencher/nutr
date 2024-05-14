@@ -7,7 +7,7 @@ import wandb
 import yaml
 import os
 import sys
-
+import traceback
 ###imports
 from utils import tokenise_input_seq_and_labels, get_Data, compute_metrics
 
@@ -103,7 +103,6 @@ def main():
 
 
             train_args = TrainingArguments(
-                f"{args.wandb_project_name}-finetuned-lora-NucleotideTransformer",
                 output_dir=args.output_dir,
                 remove_unused_columns=args.remove_unused_columns,
                 evaluation_strategy=args.evaluation_strategy,
@@ -135,6 +134,7 @@ def main():
             train_results = trainer.train()
     except Exception as e:
         print(e)
+        traceback.print_exc()
     finally:
         wandb.finish()
     
