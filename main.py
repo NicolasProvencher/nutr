@@ -43,14 +43,15 @@ def parse_arguments():
 
     #argument for model training
     parser.add_argument('--remove_unused_columns', default=False, help='Remove unused columns')
-    parser.add_argument('--evaluation_strategy', default="epoch", help='Evaluation strategy')
-    parser.add_argument('--save_strategy', default="epoch", help='Save strategy')
+    parser.add_argument('--evaluation_strategy', default="steps", help='Evaluation strategy')
+    parser.add_argument('--save_strategy', default="steps", help='Save strategy')
+    parser.add_argument('--save_steps', type=int, default=1000, help='Save steps')
     parser.add_argument('--learning_rate', type=float, default=5e-4, help='Learning rate')
     parser.add_argument('--per_device_train_batch_size', type=int, default=args.batch_size, help='Per device train batch size')
     parser.add_argument('--gradient_accumulation_steps', type=int, default=1, help='Gradient accumulation steps')
-    parser.add_argument('--per_device_eval_batch_size', type=int, default=64, help='Per device eval batch size')
-    parser.add_argument('--num_train_epochs', type=int, default=1, help='Number of training epochs')
-    parser.add_argument('--logging_steps', type=int, default=1, help='Logging steps')
+    parser.add_argument('--per_device_eval_batch_size', type=int, default=1, help='Per device eval batch size')
+    parser.add_argument('--num_train_epochs', type=int, default=2, help='Number of training epochs')
+    parser.add_argument('--logging_steps', type=int, default=500, help='Logging steps')
     parser.add_argument('--load_best_model_at_end', default=True, help='Load the best model at the end')
     parser.add_argument('--metric_for_best_model', default="pr_auc", help='Metric for best model')
     parser.add_argument('--dataloader_drop_last', default=True, help='Drop last batch in dataloader')
@@ -107,6 +108,7 @@ def main():
                 remove_unused_columns=args.remove_unused_columns,
                 evaluation_strategy=args.evaluation_strategy,
                 save_strategy=args.save_strategy,
+                save_steps=args.save_steps,
                 learning_rate=args.learning_rate,
                 per_device_train_batch_size=args.batch_size,
                 gradient_accumulation_steps= args.gradient_accumulation_steps,
@@ -115,9 +117,9 @@ def main():
                 logging_steps= args.logging_steps,
                 load_best_model_at_end=args.load_best_model_at_end, 
                 metric_for_best_model=args.metric_for_best_model,
-                label_names=args.label_col,
+                label_names=['labels'],
                 dataloader_drop_last=args.dataloader_drop_last,
-                #max_steps= 1000,
+                max_steps= 5000,
                 report_to=args.report_to,
                 logging_dir=args.logging_dir,
                 
