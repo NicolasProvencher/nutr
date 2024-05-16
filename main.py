@@ -11,9 +11,9 @@ import traceback
 ###imports
 from utils import tokenise_input_seq_and_labels, get_Data, compute_metrics
 
-def load_config():
+def load_config(config_file):
     # Load arguments from a YAML file
-    with open('config.yml', 'r') as f:
+    with open(config_file, 'r') as f:
         config = yaml.safe_load(f)
     return config
 
@@ -21,7 +21,11 @@ def parse_arguments():
     # Create an ArgumentParser object
     parser = argparse.ArgumentParser(description='Description of your program.')
 
+    parser.add_argument('--config_file', help='Path to the config file', type=str)
+    args, _ = parser.parse_known_args()
+
     #arguments for input
+    parser.add_argument('--config_file', help='Path to the config file', type=str)
     parser.add_argument('--input_file', help='Train CSV input file', type=str)
     parser.add_argument('--separator', default=',', help='Separator of the CSV input file')
     parser.add_argument('--input_sequence_col', default='data', help='Name of the column containing input sequences')
@@ -58,6 +62,7 @@ def parse_arguments():
     parser.add_argument('--report_to', default='wandb', help='Report to')
     parser.add_argument('--logging_dir', default="./logs", help='Logging directory')
     parser.add_argument('--output_dir', default="./output", help='Output directory')
+    #TODO implement auto_find_batch_size for autofind batch size
 
 
     #arguments for wandb
@@ -66,8 +71,8 @@ def parse_arguments():
     parser.add_argument('--wandb_run_name', help='Wandb run name')
 
 
-    #load config from yml file
-    config=load_config()
+    #load config from yml file\
+    config=load_config(args.config_file)
     args = parser.parse_args(args=[f'--{k}={v}' for k, v in config.items() if k in vars(parser.parse_args())])
     args.chrm_split = config['chrm_split']
 
@@ -90,13 +95,12 @@ def main():
             model = AutoModelForTokenClassification.from_pretrained(args.model_directory, num_labels=args.num_labels, trust_remote_code=True)
             model.to(device)
 
-            #TODO check if target module can vary and why
             peft_config = LoraConfig(
                     task_type=args.task_type, inference_mode=args.inference_mode, r=args.r, lora_alpha= args.lora_alpha, lora_dropout=args.lora_dropout, target_modules=args.target_modules,
                     )
             lora_classifier = get_peft_model(model, peft_config) # transform our classifier into a peft model
             lora_classifier.print_trainable_parameters()
-            lora_classifier.to(device) # Put the model on the GPU
+            lora_classifier.to(device)
 
             tokenizer = AutoTokenizer.from_pretrained(args.model_directory,trust_remote_code=True)
             train, val, test=get_Data(args.input_file, args.separator, args.input_sequence_col, args.label_col, tokenizer, args.chrm_split, split)
