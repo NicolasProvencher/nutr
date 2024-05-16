@@ -1,47 +1,63 @@
-from sklearn.metrics import matthews_corrcoef, roc_auc_score, precision_recall_curve, auc, f1_score
+from sklearn.metrics import matthews_corrcoef, roc_auc_score, precision_recall_curve, auc
 import torch.nn.functional as F
 import torch
 import numpy as np
 from datasets import Dataset
 import pandas as pd
+from torchmetrics import AUROC, PrecisionRecallCurve
 
-
-
-
-
-def compute_metrics(eval_pred):
-    """Computes F1 score for binary classification"""
-    print('hello')
-    predictions, references = eval_pred.predictions, eval_pred.label_ids
-
-    mask = references != -100
-    predictions = predictions[mask]
-    references = references[mask]
-    try:
-        np.savetxt('/home/roucoulab/Destop/slurm_tmpdir/prediction.txt', np.argmax(predictions, axis= -1))
-        np.savetxt('/home/roucoulab/Destop/slurm_tmpdir/reference.txt', references)
-    except:
-        print('coldnt save prediction and reference')
-    predictions = np.argmax(predictions, axis=-1).flatten()
-    references = references.flatten()
-    precision, recall, _ = precision_recall_curve(references, predictions)
-    auc_score = auc(recall, precision)
-    r = {'roc_auc': roc_auc_score(references, predictions),
-        'pr_auc': auc_score}
-    return r
 
 
 
 
 # def compute_metrics(eval_pred):
 #     """Computes F1 score for binary classification"""
-#     print('hello')
-#     predictions = np.argmax(eval_pred.predictions, axis=-1)
-#     references = eval_pred.label_ids
-#     r={'f1_score': f1_score(references, predictions)}
+#     predictions, references = eval_pred.predictions, eval_pred.label_ids
+
+#     mask = references != -100
+#     predictions = predictions[mask]
+#     references = references[mask]
+
+#     np.savetxt('prediction.txt', np.argmax(predictions, axis= -1))
+#     np.savetxt('reference.txt', references)
+#     predictions = np.argmax(predictions, axis=-1).flatten()
+#     references = references.flatten()
+#     precision, recall, _ = precision_recall_curve(references, predictions)
+#     auc_score = auc(recall, precision)
+#     # print(f'prediction 2 {predictions}')
+#     # print(len(predictions))
+#     # print(f'reference 2 {references}')
+#     # print(len(references))
+#     r = {'rocauc': roc_auc_score(references, predictions),
+#         'pr_auc': auc_score
+#         }
 #     return r
 
 
+
+
+def compute_metrics(eval_pred):
+    """Computes ROC AUC and PR AUC for binary classification"""
+    predictions, labels = eval_pred.predictions, eval_pred.label_ids
+
+    mask = labels != -100
+    predictions = predictions[mask]
+    labels = labels[mask]
+    predictions = torch.from_numpy(predictions)
+    labels = torch.from_numpy(labels)
+
+    # Compute ROC AUC
+    roc_auc = AUROC(pos_label=1)(predictions, labels)
+
+    # Compute PR AUC
+    pr_curve = PrecisionRecallCurve(pos_label=1)
+    precision, recall, _ = pr_curve(predictions, labels)
+    pr_auc = auc(recall, precision)
+
+    return {
+        'roc_auc': roc_auc.item(),
+        'pr_auc': pr_auc.item(),
+    }
 
 def tokenise_input_seq_and_labels(example, max_length, tokenizer, label_name, sequence_name):
     
@@ -97,9 +113,9 @@ def get_Data(csv_path, separator, input_sequence_col, label_col, tokenizer, chrm
 
 
     datasets = {
-        'train': Dataset.from_pandas(df.loc[df['chrm'].isin(chrm_split[split]['train'])].iloc[:5000]),
-        'val': Dataset.from_pandas(df.loc[df['chrm'].isin(chrm_split[split]['val'])].iloc[:1000]),
-        'test': Dataset.from_pandas(df.loc[df['chrm'].isin(chrm_split[split]['test'])].iloc[:10])
+        'train': Dataset.from_pandas(df.loc[df['chrm'].isin(chrm_split[split]['train'])]),
+        'val': Dataset.from_pandas(df.loc[df['chrm'].isin(chrm_split[split]['val'])]),
+        'test': Dataset.from_pandas(df.loc[df['chrm'].isin(chrm_split[split]['test'])])
     }
     for name, dataset in datasets.items():
         datasets[name] = dataset.map(tokenise_input_seq_and_labels, fn_kwargs={"label_name": label_col, "sequence_name": input_sequence_col, "max_length": max_length, "tokenizer": tokenizer})
