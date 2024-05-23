@@ -15,9 +15,9 @@ chrm_split:
 
 
 wandb_project_name: "narval test"
-wandb_run_name: "test1"
+wandb_run_name: "partest5"
 offline_wandb_path: "/home/roucoulab/Desktop/SLURM_TMPDIR"
 logging_dir: "/home/roucoulab/Desktop/SLURM_TMPDIR"
-output_dir: "/home/roucoulab/Desktop/SLURM_TMPDIR/test1"
+output_dir: "/home/roucoulab/Desktop/SLURM_TMPDIR/partest5"
 model_dir: "/home/roucoulab/Desktop/slurm_tmpdir/model/nucleotide-transformer-v2-50m-multi-species"
 input_sequence_col: "sequence"

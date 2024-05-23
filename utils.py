@@ -1,4 +1,4 @@
-from sklearn.metrics import matthews_corrcoef, roc_auc_score, precision_recall_curve, auc
+from sklearn.metrics import matthews_corrcoef, roc_auc_score, precision_recall_curve, auc, confusion_matrix
 import torch.nn.functional as F
 import torch
 import numpy as np
@@ -10,54 +10,67 @@ from torchmetrics import AUROC, PrecisionRecallCurve
 
 
 
-# def compute_metrics(eval_pred):
-#     """Computes F1 score for binary classification"""
-#     predictions, references = eval_pred.predictions, eval_pred.label_ids
-
-#     mask = references != -100
-#     predictions = predictions[mask]
-#     references = references[mask]
-
-#     np.savetxt('prediction.txt', np.argmax(predictions, axis= -1))
-#     np.savetxt('reference.txt', references)
-#     predictions = np.argmax(predictions, axis=-1).flatten()
-#     references = references.flatten()
-#     precision, recall, _ = precision_recall_curve(references, predictions)
-#     auc_score = auc(recall, precision)
-#     # print(f'prediction 2 {predictions}')
-#     # print(len(predictions))
-#     # print(f'reference 2 {references}')
-#     # print(len(references))
-#     r = {'rocauc': roc_auc_score(references, predictions),
-#         'pr_auc': auc_score
-#         }
-#     return r
-
-
-
-
 def compute_metrics(eval_pred):
-    """Computes ROC AUC and PR AUC for binary classification"""
-    predictions, labels = eval_pred.predictions, eval_pred.label_ids
-
-    mask = labels != -100
+    """Computes F1 score for binary classification"""
+    predictions, references = eval_pred.predictions, eval_pred.label_ids
+    mask = references != -100
     predictions = predictions[mask]
-    labels = labels[mask]
-    predictions = torch.from_numpy(predictions)
-    labels = torch.from_numpy(labels)
+    references = references[mask]
+    predictions = np.argmax(predictions, axis=-1).flatten()
+    references = references.flatten()
+    precision, recall, _ = precision_recall_curve(references, predictions)
+    auc_score = auc(recall, precision)
+    tn, fp, fn, tp = confusion_matrix(references, predictions).ravel()
+    # print(f'prediction 2 {predictions}')    # Compute FNR and FPR
+    r = {'rocauc': roc_auc_score(references, predictions),
+        'pr_auc': auc_score,
+        'tn': tn,
+        'fp': fp,
+        'fn': fn,
+        'tp': tp,
 
-    # Compute ROC AUC
-    roc_auc = AUROC(pos_label=1)(predictions, labels)
+        }
+    return r
 
-    # Compute PR AUC
-    pr_curve = PrecisionRecallCurve(pos_label=1)
-    precision, recall, _ = pr_curve(predictions, labels)
-    pr_auc = auc(recall, precision)
 
-    return {
-        'roc_auc': roc_auc.item(),
-        'pr_auc': pr_auc.item(),
-    }
+
+
+# def compute_metrics(eval_pred):
+#     """Computes ROC AUC and PR AUC for binary classification"""
+#     predictions, labels = eval_pred.predictions, eval_pred.label_ids
+
+#     mask = labels != -100
+#     predictions = predictions[mask]
+#     labels = labels[mask]
+#     torch_predictions = torch.from_numpy(predictions)
+#     torch_labels = torch.from_numpy(labels)
+
+#     # Compute ROC AUC
+#     roc_auc = AUROC(task='binary')(torch_predictions, torch_labels)
+
+#     # Compute PR AUC
+#     pr_curve = PrecisionRecallCurve(task='binary')
+#     precision, recall, _ = pr_curve(torch_predictions, torch_labels)
+#     pr_auc = auc(recall, precision)
+#         # Compute confusion matrix
+#     tn, fp, fn, tp = confusion_matrix(labels, predictions).ravel()
+#     sk_predictions = np.argmax(predictions, axis=-1).flatten()
+#     sk_references = labels.flatten()
+#     sk_precision, sk_recall, _ = precision_recall_curve(sk_references, sk_predictions)
+#     sk_auc_score = auc(sk_recall, sk_precision)
+#     # print(f'prediction 2 {predictions}')    # Compute FNR and FPR
+
+
+#     return {
+#         'roc_auc': roc_auc.item(),
+#         'pr_auc': pr_auc.item(),
+#         'tn': tn,
+#         'fp': fp,
+#         'fn': fn,
+#         'tp': tp,
+#         'sk_rocauc': roc_auc_score(sk_references, sk_predictions),
+#         'sk_pr_auc': sk_auc_score
+#     }
 
 def tokenise_input_seq_and_labels(example, max_length, tokenizer, label_name, sequence_name):
     
@@ -100,7 +113,7 @@ def tokenise_input_seq_and_labels(example, max_length, tokenizer, label_name, se
 
 def get_Data(csv_path, separator, input_sequence_col, label_col, tokenizer, chrm_split, split):
     max_length = tokenizer.model_max_length
-    df = pd.read_csv(csv_path, sep=separator, usecols=[input_sequence_col, label_col, 'chrm']).reset_index(drop=True)
+    df = pd.read_csv(csv_path, sep=separator, usecols=[input_sequence_col, label_col, 'chrm', 'transcript_name']).reset_index(drop=True)
 
     # chrm_split dict should be in the form:
     # chrm_split={
@@ -113,16 +126,18 @@ def get_Data(csv_path, separator, input_sequence_col, label_col, tokenizer, chrm
 
 
     datasets = {
-        'train': Dataset.from_pandas(df.loc[df['chrm'].isin(chrm_split[split]['train'])]),
-        'val': Dataset.from_pandas(df.loc[df['chrm'].isin(chrm_split[split]['val'])]),
-        'test': Dataset.from_pandas(df.loc[df['chrm'].isin(chrm_split[split]['test'])])
+        'train': Dataset.from_pandas(df.loc[df['chrm'].isin(chrm_split[split]['train'])].iloc[:50]),
+        'val': Dataset.from_pandas(df.loc[df['chrm'].isin(chrm_split[split]['val'])].iloc[:50]),
+        'test': Dataset.from_pandas(df.loc[df['chrm'].isin(chrm_split[split]['test'])].iloc[:50])
     }
     for name, dataset in datasets.items():
         datasets[name] = dataset.map(tokenise_input_seq_and_labels, fn_kwargs={"label_name": label_col, "sequence_name": input_sequence_col, "max_length": max_length, "tokenizer": tokenizer})
         datasets[name] = datasets[name].remove_columns([input_sequence_col, '__index_level_0__', 'chrm'])
+        if name != 'test':
+            datasets[name] = datasets[name].remove_columns(['transcript_name'])
     return datasets['train'], datasets['val'], datasets['test']
 
-# from transformers import Trainer, TrainingArguments
+
 # from transformers.modeling_utils import unwrap_model
 # from transformers.models.auto.modeling_auto import MODEL_FOR_CAUSAL_LM_MAPPING_NAMES
 
