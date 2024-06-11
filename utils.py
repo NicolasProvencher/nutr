@@ -104,6 +104,7 @@ def tokenise_input_seq_and_labels(example, max_length, tokenizer, label_name, se
     #print(example['labels'])
     example['input_ids'] = token['input_ids'][0]
     example['attention_mask'] = token['attention_mask'][0]
+    example['token']=tokenizer.decode(token['input_ids'][0].tolist())
     # print(token['input_ids'].shape)
     # print(token['input_ids'][-5:])
     # print(type(example))
@@ -126,15 +127,16 @@ def get_Data(csv_path, separator, input_sequence_col, label_col, tokenizer, chrm
 
 
     datasets = {
-        'train': Dataset.from_pandas(df.loc[df['chrm'].isin(chrm_split[split]['train'])].iloc[:50]),
-        'val': Dataset.from_pandas(df.loc[df['chrm'].isin(chrm_split[split]['val'])].iloc[:50]),
-        'test': Dataset.from_pandas(df.loc[df['chrm'].isin(chrm_split[split]['test'])].iloc[:50])
+        'train': Dataset.from_pandas(df.loc[df['chrm'].isin(chrm_split[split]['train'])]),
+        'val': Dataset.from_pandas(df.loc[df['chrm'].isin(chrm_split[split]['val'])]),
+        'test': Dataset.from_pandas(df.loc[df['chrm'].isin(chrm_split[split]['test'])])
     }
     for name, dataset in datasets.items():
         datasets[name] = dataset.map(tokenise_input_seq_and_labels, fn_kwargs={"label_name": label_col, "sequence_name": input_sequence_col, "max_length": max_length, "tokenizer": tokenizer})
-        datasets[name] = datasets[name].remove_columns([input_sequence_col, '__index_level_0__', 'chrm'])
+        datasets[name] = datasets[name].remove_columns([ '__index_level_0__'])
         if name != 'test':
-            datasets[name] = datasets[name].remove_columns(['transcript_name'])
+            datasets[name] = datasets[name].remove_columns(['transcript_name',input_sequence_col,'chrm','token'])
+
     return datasets['train'], datasets['val'], datasets['test']
 
 

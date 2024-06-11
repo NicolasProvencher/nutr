@@ -171,8 +171,8 @@ def parse_arguments():
 def main():
 
     for split in range(1, 2):
-        #check if first iteration was done previously
-            # Parse the command-line arguments
+
+        # Parse the command-line arguments
         args = parse_arguments()
         print(args.num_labels)
         device = torch.device("cuda")
@@ -212,7 +212,7 @@ def main():
                 continue
 
         else:
-            
+            #check if first iteration was done previously
             if os.path.exists(f"{args.output_dir}-split{split}/output.csv"):
                 continue
             else:
@@ -242,6 +242,10 @@ def main():
 
                     tokenizer = AutoTokenizer.from_pretrained(args.model_directory,trust_remote_code=True)
                     train, val, test=get_Data(args.input_file, args.separator, args.input_sequence_col, args.label_col, tokenizer, args.chrm_split, split)
+                    print(train.info.dataset_size)
+                    print(val.info.dataset_size)
+                    print(test.info.dataset_size)
+                    sys.exit()
                     steps_per_epoch = len(train) // args.batch_size
                     half_epoch_steps = steps_per_epoch // 4
 
@@ -289,7 +293,7 @@ def main():
                         train_args = TrainingArguments(
                             output_dir=f"{args.output_dir}-split{split}",
                             remove_unused_columns=args.remove_unused_columns,
-                            evaluation_strategy=args.evaluation_strategy,
+                            eval_strategy=args.evaluation_strategy,
                             save_strategy=args.save_strategy,
                             save_steps=half_epoch_steps,
                             learning_rate=args.learning_rate,
@@ -315,21 +319,47 @@ def main():
                     # model.config.output_attentions = True
                     #trainer.save(output_dir=f"{args.output_dir}-split{split}-final")
                     model.save_pretrained(f"{args.output_dir}-split{split}-final")
-                    predictions, labels, metrics = trainer.predict(test)
-
-                    print(labels)
-                    print(metrics)
+                    predictions, labels, metrics = trainer.predict(test.remove_columns(['transcript_name', args.input_sequence_col,'chrm','token']))
+                    print(f'dimensions       {predictions.ndim} {labels.ndim}')
+                    np.save('preditcions.npy', predictions)
+                    np.save('labels.npy', labels)
+                    np.save('test.npy', test['input_ids'])
+                    np.save('test_labels.npy', test['labels'])
+                    print(type(test['transcript_name']))
+                    #output_dict={}
+                    # for i,j in enumerate(test['transcript_name']):
+                    #     # print(test['transcript_name'][i])
+                    #     # print(test['input_ids'][i])
+                    #     # print(test['labels'][i])
+                    #     # print(np.argmax(predictions[i],axis=1))
+                    #     # print(labels[i])
+                    #     output_dict.append({'t_name':test['transcript_name'][i],
+                    #                         'input_ids':test['input_ids'][i],
+                    #                           'labels':test['labels'][i],
+                    #                             'predictions':np.argmax(predictions[i],axis=1).tolist(),
+                    #                               'true_labels':labels[i].tolist()})
+                    #     if i==5:
+                    #         break
+                    output_dict={'t_name':test['transcript_name'],
+                    'input_ids':test['input_ids'],
+                    'token':test['token'],
+                        'labels':test['labels'],
+                        'predictions':np.argmax(predictions,axis=2).tolist(),
+                            'true_labels':labels.tolist(),
+                            'sequence':test[args.input_sequence_col]}
+                    
+                    # output_dict = {
+                    # 't_name': test['transcript_name'],
+                    # 'input_ids': tokenizer.decode([value for value in test['input_ids'] if value != 1 and value != 3]),
+                    # 'labels': [value for value in test['labels'] if value != -100],
+                    # 'predictions': [value for value in np.argmax(predictions, axis=2).tolist() if value != -100],
+                    # 'true_labels': [value for value in labels.tolist() if value != -100],
+                    # 'sequence': test[args.input_sequence_col]
+                    # }
                     #predictions_np = predictions.cpu().numpy()
 
-                    predictions = np.argmax(predictions, axis=2)
-                    print(predictions)
-                    output_df = pd.DataFrame({'transcript_name': test['transcript_name'],
-                                            'output_predictions': predictions,
-                                            'labels': labels,
-                                            'test_in_id': test['input_ids'],
-                                            #  'test_att': test['attention_mask'],
-                                            'test_labels': test['labels'],
-                                            })
+
+                    output_df = pd.DataFrame(output_dict)
                     output_df.to_csv(f"{args.output_dir}-split{split}/output.csv", index=False)
                     np.save(f"{args.output_dir}-split{split}/predictions.npy", predictions)
                     test_metrics = {f"test/{k}": v for k, v in metrics.items()}
