@@ -298,8 +298,26 @@ def main():
                         trainer.train(resume_from_checkpoint=latest_checkpoint_path, without_checkpoint_model=True)
                     #run normal training part
                     else:
-                        train_args = TrainingArguments(
+                        # train_args = TrainingArguments(
                         
+                        #     output_dir=f"{args.output_dir}-split{split}",
+                        #     #
+                        #     eval_strategy=args.evaluation_strategy,
+                        #     save_strategy=args.save_strategy,
+                        #     save_steps=half_epoch_steps,
+                        #     learning_rate=args.learning_rate,
+                        #     gradient_accumulation_steps= args.gradient_accumulation_steps,
+                        #     #auto_find_batch_size =True,
+                        #     num_train_epochs= args.num_train_epochs,
+                        #     logging_steps= half_epoch_steps,
+                        #     load_best_model_at_end=args.load_best_model_at_end, 
+                        #     metric_for_best_model=args.metric_for_best_model,
+                        #     label_names=['labels'],
+                        #     dataloader_drop_last=args.dataloader_drop_last,
+                        #     max_steps= steps_per_epoch,
+                        # )
+                        train_args = TrainingArguments(
+            
                             output_dir=f"{args.output_dir}-split{split}",
                             #
                             eval_strategy=args.evaluation_strategy,
@@ -350,6 +368,7 @@ def main():
                     #     if i==5:
                     #         break
                     code.interact(local=locals())
+                    a=[test[0]['transcript_name'],labels[0],np.argmax(predictions[0], axis=1)]
                     output_dict={'t_name':test['transcript_name'],
                     'input_ids':test['input_ids'],
                     'token':test['token'],
