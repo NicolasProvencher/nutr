@@ -39,7 +39,7 @@ def parse_arguments():
     parser.add_argument('--model_directory', help='Path to the directory containing the model files', type=str)
     parser.add_argument('--batch_size', type=int, default=1, help='Batch size')
     parser.add_argument('--num_labels', type=int, default=2, help='Number of labels for the promoter')
-    # Compute FNR and FPR
+
     #arguments for LoRa
     parser.add_argument('--task_type', default=TaskType.TOKEN_CLS, help='Task type')
     parser.add_argument('--inference_mode', type=bool, default=False, help='Inference mode')
@@ -67,10 +67,8 @@ def parse_arguments():
     parser.add_argument('--logging_dir', default="./logs", help='Logging directory')
     parser.add_argument('--output_dir', default="./output", help='Output directory')
 
-    #TODO implement auto_find_batch_size for autofind batch size
 
 
-    #arguments for wandbtorch.save(predictions, f"{args.output_dir}-split{split}/predictions.pt")
     parser.add_argument('--offline_wandb_path', help='Offline wandb path')
     parser.add_argument('--wandb_project_name', help='Wandb project')
     parser.add_argument('--wandb_run_name', help='Wandb run name')
@@ -83,94 +81,14 @@ def parse_arguments():
     config=load_config(args.config_file)
     for k, v in config.items():
         setattr(args, k, v)
-    # print(f'args333 {args}')
-    # print(f'config: {type(args)}')
     args.chrm_split = config['chrm_split']
 
-    # config = load_config(args.config_file)
-
-    # Update the values in config with the values from the command line arguments
-    # for k, v in vars(args).items():
-    #     if k in config:
-    #         config[k] = v
-
-    # # Update the values in args with the values from config
-    # for k, v in config.items():
-    #     setattr(args, k, v)
-
-    print(args)
     return args
 
 
-
-
-# def main():
-    # Parse the command-line arguments
-    # args = parse_arguments()
-    # print(args.num_labels)
-    # device = torch.device("cuda")
-
-    # os.environ['WANDB_DIR'] = args.offline_wandb_path
-
-    # for split in range(1, 2):
-    #     if not os.path.exists(f"{args.output_dir}-split{split}"):
-    #         try:
-    #             wandb.init(mode='offline', project=args.wandb_project_name, name=f"{args.wandb_run_name}-split{split}")
-    #             model = AutoModelForTokenClassification.from_pretrained(args.model_directory, num_labels=args.num_labels, trust_remote_code=True)
-    #             model.to(device)
-
-    #             peft_config = LoraConfig(
-    #                     task_type=args.task_type, inference_mode=args.inference_mode, r=args.r, lora_alpha= args.lora_alpha, lora_dropout=args.lora_dropout, target_modules=args.target_modules,
-    #                     )
-    #             lora_classifier = get_peft_model(model, peft_config) # transform our classifier into a peft model
-    #             lora_classifier.print_trainable_parameters()
-    #             lora_classifier.to(device)
-
-    #             tokenizer = AutoTokenizer.from_pretrained(args.model_directory,trust_remote_code=True)
-    #             train, val, test=get_Data(args.input_file, args.separator, args.input_sequence_col, args.label_col, tokenizer, args.chrm_split, split)
-
-
-
-    #             train_args = TrainingArguments(
-    #                 output_dir=f"{args.output_dir}-split{split}",
-    #                 remove_unused_columns=args.remove_unused_columns,
-    #                 evaluation_strategy=args.evaluation_strategy,
-    #                 save_strategy=args.save_strategy,
-    #                 save_steps=args.save_steps,
-    #                 learning_rate=args.learning_rate,
-    #                 per_device_train_batch_size=args.batch_size,
-    #                 gradient_accumulation_steps= args.gradient_accumulation_steps,
-    #                 per_device_eval_batch_size= args.batch_size,
-    #                 num_train_epochs= args.num_train_epochs,
-    #                 logging_steps= args.logging_steps,
-    #                 load_best_model_at_end=args.load_best_model_at_end, 
-    #                 metric_for_best_model=args.metric_for_best_model,
-    #                 label_names=['labels'],
-    #                 dataloader_drop_last=args.dataloader_drop_last,
-    #                 max_steps= 3000,
-    #                 report_to=args.report_to,
-    #                 logging_dir=args.logging_dir,
-                    
-    #                 )
-
-    #             trainer = Trainer(
-    #             model.to(device),        dataset = load_data(args.input_file)
-    #             train_args,
-    #             train_dataset= train,
-    #             eval_dataset= val,
-    #             tokenizer=tokenizer,
-    #             compute_metrics=compute_metrics,
-    #             )
-    #             train_results = trainer.train()
-    #         except Exception as e:
-    #             print(e)
-    #             traceback.print_exc()
-    #         finally:
-    #             wandb.finish()
-
 def main():
 
-    for split in range(1, 2):
+    for split in range(1, 3):
 
         # Parse the command-line arguments
         args = parse_arguments()
@@ -222,7 +140,11 @@ def main():
             #check if fold already exist
             if os.path.exists(f"{args.output_dir}-split{split}/output.csv"):
                 continue
+            elif os.path.exists(f"{args.output_dir}-split{split}"):
+                #TODO add a way to do prediction from the saved model
+                sys.exit(f"Output directory {args.output_dir}-split{split} already exists. this means the trainer has been done completly or partially. ")
             else:
+                #this is so i can end every wandb run
                 try:
                     wandb.init(mode='offline', project=args.wandb_project_name, name=f"{args.wandb_run_name}-split{split}", dir=args.offline_wandb_path)
                     base_dir = f"{args.output_dir}-split{split}"
@@ -239,12 +161,14 @@ def main():
                     #else:
                     """
                     model1 = AutoModelForTokenClassification.from_pretrained(args.model_directory, num_labels=args.num_labels, trust_remote_code=True, output_attentions=False)
-
-                    model1.to(device)
-
                     peft_config = LoraConfig(
-                            task_type=args.task_type, inference_mode=args.inference_mode, r=args.r, lora_alpha= args.lora_alpha, lora_dropout=args.lora_dropout, target_modules=args.target_modules,
+                            task_type=args.task_type, 
+                            inference_mode=args.inference_mode, 
+                            r=args.r, lora_alpha= args.lora_alpha, 
+                            lora_dropout=args.lora_dropout, 
+                            target_modules=args.target_modules,
                             )
+                    
                     model = get_peft_model(model1, peft_config) # transform our classifier into a peft model
                     model.print_trainable_parameters()
                     model.to(device)
@@ -258,56 +182,28 @@ def main():
                     a=0
                     #this if is for checkpointing
                     if os.path.exists(base_dir) and a==1:
-                        # model1 = AutoModelForTokenClassification.from_pretrained(latest_checkpoint_path, num_labels=args.num_labels, trust_remote_code=True, output_attentions=False)
-                        # model = PeftModel.from_pretrained(model1, latest_checkpoint_path)
-                        # model.to(device)
-                        #model1 = AutoModelForTokenClassification.from_pretrained(args.model_directory, num_labels=args.num_labels, trust_remote_code=True, output_attentions=False)
+                        print('not implemented yet')
+                        # # model1 = AutoModelForTokenClassification.from_pretrained(latest_checkpoint_path, num_labels=args.num_labels, trust_remote_code=True, output_attentions=False)
+                        # # model = PeftModel.from_pretrained(model1, latest_checkpoint_path)
+                        # # model.to(device)
+                        # #model1 = AutoModelForTokenClassification.from_pretrained(args.model_directory, num_labels=args.num_labels, trust_remote_code=True, output_attentions=False)
 
-                        model = AutoModelForTokenClassification.from_pretrained(latest_checkpoint_path, num_labels=args.num_labels, trust_remote_code=True)
-                        peft_model = PeftModel.from_pretrained(model, model_id=latest_checkpoint_path, num_labels=args.num_labels)
+                        # model = AutoModelForTokenClassification.from_pretrained(latest_checkpoint_path, num_labels=args.num_labels, trust_remote_code=True)
+                        # peft_model = PeftModel.from_pretrained(model, model_id=latest_checkpoint_path, num_labels=args.num_labels)
 
-                        #model1 = AutoModelForTokenClassification.from_pretrained(latest_checkpoint_path, num_labels=args.num_labels, trust_remote_code=True, output_attentions=False)
-                        #model = PeftModel.from_pretrained(model1, model_id=latest_checkpoint_path, num_labels=args.num_labels)
+                        # #model1 = AutoModelForTokenClassification.from_pretrained(latest_checkpoint_path, num_labels=args.num_labels, trust_remote_code=True, output_attentions=False)
+                        # #model = PeftModel.from_pretrained(model1, model_id=latest_checkpoint_path, num_labels=args.num_labels)
 
-                        train_args = TrainingArguments(
-                            output_dir=f"{args.output_dir}-split{split}",
-                            remove_unused_columns=args.remove_unused_columns,
-                            evaluation_strategy=args.evaluation_strategy,
-                            save_strategy=args.save_strategy,
-                            save_steps=half_epoch_steps,
-                            learning_rate=args.learning_rate,
-                            per_device_train_batch_size=args.batch_size,
-                            gradient_accumulation_steps= args.gradient_accumulation_steps,
-                            per_device_eval_batch_size= args.batch_size,
-                            num_train_epochs= args.num_train_epochs,
-                            logging_steps= half_epoch_steps,
-                            load_best_model_at_end=args.load_best_model_at_end, 
-                            metric_for_best_model=args.metric_for_best_model,
-                            label_names=['labels'],
-                            dataloader_drop_last=args.dataloader_drop_last,
-                            max_steps= steps_per_epoch,
-                        )
-                        trainer = Trainer(
-                            model=peft_model,
-                            args=train_args,
-                            train_dataset=train,
-                            eval_dataset=val,
-                            compute_metrics=compute_metrics,                             
-                        )
-
-                        trainer.train(resume_from_checkpoint=latest_checkpoint_path, without_checkpoint_model=True)
-                    #run normal training part
-                    else:
                         # train_args = TrainingArguments(
-                        
                         #     output_dir=f"{args.output_dir}-split{split}",
-                        #     #
-                        #     eval_strategy=args.evaluation_strategy,
+                        #     remove_unused_columns=args.remove_unused_columns,
+                        #     evaluation_strategy=args.evaluation_strategy,
                         #     save_strategy=args.save_strategy,
                         #     save_steps=half_epoch_steps,
                         #     learning_rate=args.learning_rate,
+                        #     per_device_train_batch_size=args.batch_size,
                         #     gradient_accumulation_steps= args.gradient_accumulation_steps,
-                        #     #auto_find_batch_size =True,
+                        #     per_device_eval_batch_size= args.batch_size,
                         #     num_train_epochs= args.num_train_epochs,
                         #     logging_steps= half_epoch_steps,
                         #     load_best_model_at_end=args.load_best_model_at_end, 
@@ -316,10 +212,20 @@ def main():
                         #     dataloader_drop_last=args.dataloader_drop_last,
                         #     max_steps= steps_per_epoch,
                         # )
+                        # trainer = Trainer(
+                        #     model=peft_model,
+                        #     args=train_args,
+                        #     train_dataset=train,
+                        #     eval_dataset=val,
+                        #     compute_metrics=compute_metrics,                             
+                        # )
+
+                        # trainer.train(resume_from_checkpoint=latest_checkpoint_path, without_checkpoint_model=True)
+                    #run normal training part
+                    else:
+
                         train_args = TrainingArguments(
-            
                             output_dir=f"{args.output_dir}-split{split}",
-                            #
                             eval_strategy=args.evaluation_strategy,
                             save_strategy=args.save_strategy,
                             save_steps=half_epoch_steps,
