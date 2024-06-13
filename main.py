@@ -189,7 +189,7 @@ def main():
                 tokenizer = AutoTokenizer.from_pretrained(args.model_directory,trust_remote_code=True)
 
                 #get the input datas 
-                #TODO for prediction padding is irelevent, should modify this
+
                 _, _, test=get_Data(args.input_file, args.separator, args.input_sequence_col, args.label_col, tokenizer, args.chrm_split, split)
                 
                 # Initialize the TrainingArguments
@@ -345,37 +345,26 @@ def main():
                         trainer.train()
                     # model.config.output_attentions = True
                     #trainer.save(output_dir=f"{args.output_dir}-split{split}-final")
+
+
+
+                    
                     model.save_pretrained(f"{args.output_dir}-split{split}-final")
                     predictions, labels, metrics = trainer.predict(test.remove_columns(['transcript_name', args.input_sequence_col,'chrm','token']))
                     print(f'dimensions       {predictions.ndim} {labels.ndim}')
                     np.save('preditcions.npy', predictions)
-                    np.save('labels.npy', labels)
-                    np.save('test.npy', test['input_ids'])
-                    np.save('test_labels.npy', test['labels'])
-                    print(type(test['transcript_name']))
-                    #output_dict={}
-                    # for i,j in enumerate(test['transcript_name']):
-                    #     # print(test['transcript_name'][i])
-                    #     # print(test['input_ids'][i])
-                    #     # print(test['labels'][i])
-                    #     # print(np.argmax(predictions[i],axis=1))
-                    #     # print(labels[i])
-                    #     output_dict.append({'t_name':test['transcript_name'][i],
-                    #                         'input_ids':test['input_ids'][i],
-                    #                           'labels':test['labels'][i],
-                    #                             'predictions':np.argmax(predictions[i],axis=1).tolist(),
-                    #                               'true_labels':labels[i].tolist()})
-                    #     if i==5:
-                    #         break
-                    code.interact(local=locals())
-                    a=[test[0]['transcript_name'],labels[0],np.argmax(predictions[0], axis=1)]
+                    np.save('pred_labels.npy', labels)
+                    np.save('pred_in.npy', test['input_ids'])
+                    np.save('pred_inlabels.npy', test['labels'])
+
+                    #code.interact(local=locals())
                     output_dict={'t_name':test['transcript_name'],
-                    'input_ids':test['input_ids'],
-                    'token':test['token'],
-                        'labels':test['labels'],
-                        'predictions':np.argmax(predictions,axis=2).tolist(),
-                            'true_labels':labels.tolist(),
-                            'sequence':test[args.input_sequence_col]}
+                                'input_ids':test['input_ids'],
+                                'token':test['token'],
+                                'labels':test['labels'],
+                                'predictions':np.argmax(predictions,axis=2).tolist(),
+                                'true_labels':labels.tolist(),
+                                'sequence':test[args.input_sequence_col]}
                     
                     # output_dict = {
                     # 't_name': test['transcript_name'],
@@ -390,7 +379,6 @@ def main():
 
                     output_df = pd.DataFrame(output_dict)
                     output_df.to_csv(f"{args.output_dir}-split{split}/output.csv", index=False)
-                    np.save(f"{args.output_dir}-split{split}/predictions.npy", predictions)
                     test_metrics = {f"test/{k}": v for k, v in metrics.items()}
                     wandb.log(test_metrics)
                 except Exception as e:
