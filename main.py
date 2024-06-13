@@ -26,7 +26,7 @@ def parse_arguments():
 
     parser.add_argument('--config_file', default='config.yml', help='Path to the config file', type=str)
     args, _ = parser.parse_known_args()
-    print(f'args1: {args}')
+
 
     #arguments for input
 
@@ -48,7 +48,7 @@ def parse_arguments():
     parser.add_argument('--lora_dropout', type=float, default=0.1, help='LoRa dropout')
     parser.add_argument('--target_modules', nargs='+', default=["query", "value"], help='Target modules')
     args, _ = parser.parse_known_args()
-    print(f'args1: {args}')
+
 
     #argument for model training
     parser.add_argument('--evaluation_strategy', default="steps", help='Evaluation strategy')
@@ -74,7 +74,7 @@ def parse_arguments():
     parser.add_argument('--wandb_run_name', help='Wandb run name')
     parser.add_argument('--predict', action='store_true', help='Predict mode')
     args, _ = parser.parse_known_args()
-    print(f'args1: {args}')
+
 
 
     #load config from yml file\
@@ -249,15 +249,9 @@ def main():
                             compute_metrics=compute_metrics,
                         )
                         trainer.train()
-                    # model.config.output_attentions = True
-                    #trainer.save(output_dir=f"{args.output_dir}-split{split}-final")
-
-
-
                     
                     model.save_pretrained(f"{args.output_dir}-split{split}-final")
                     predictions, labels, metrics = trainer.predict(test.remove_columns(['transcript_name', args.input_sequence_col,'chrm','token']))
-                    print(f'dimensions       {predictions.ndim} {labels.ndim}')
                     np.save('preditcions.npy', predictions)
                     np.save('pred_labels.npy', labels)
                     np.save('pred_in.npy', test['input_ids'])
@@ -271,17 +265,6 @@ def main():
                                 'predictions':np.argmax(predictions,axis=2).tolist(),
                                 'true_labels':labels.tolist(),
                                 'sequence':test[args.input_sequence_col]}
-                    
-                    # output_dict = {
-                    # 't_name': test['transcript_name'],
-                    # 'input_ids': tokenizer.decode([value for value in test['input_ids'] if value != 1 and value != 3]),
-                    # 'labels': [value for value in test['labels'] if value != -100],
-                    # 'predictions': [value for value in np.argmax(predictions, axis=2).tolist() if value != -100],
-                    # 'true_labels': [value for value in labels.tolist() if value != -100],
-                    # 'sequence': test[args.input_sequence_col]
-                    # }
-                    #predictions_np = predictions.cpu().numpy()
-
 
                     output_df = pd.DataFrame(output_dict)
                     output_df.to_csv(f"{args.output_dir}-split{split}/output.csv", index=False)
@@ -293,18 +276,6 @@ def main():
                 finally:
                     wandb.finish()
 
-    # # Convert predictions to numpy array and flatten ittorch.save(predictions, f"{args.output_dir}-split{split}/predictions.pt")
-    #         predictions, labels, metrics = trainer.predict(test)
-    #         wandb.log(metrics)
-    #         predictions = np.argmax(predictions, axis=2).flatten()
-
-    #         output_df=pd.DataFrame({'output_predictions':predictions,
-    #                                 'labels':labels,
-    #                                 'test_in_id':test['input_ids'],
-    #                                 'test_att':test['attention_mask'],
-    #                                 'test_labels':test['labels'],
-    #                                 })
-    #         output_df.to_csv(f"{args.output_dir}-split{split}/output.csv", index=False)
 
 
 
