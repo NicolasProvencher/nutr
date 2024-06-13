@@ -4,7 +4,7 @@ import torch
 import numpy as np
 from datasets import Dataset
 import pandas as pd
-from torchmetrics import AUROC, PrecisionRecallCurve
+
 
 
 
@@ -30,6 +30,12 @@ def compute_metrics(eval_pred):
         'tp': tp,
 
         }
+    confusion_matrix_ones = confusion_matrix(references, predictions, labels=[1])
+    tn_ones, fp_ones, fn_ones, tp_ones = confusion_matrix_ones.ravel()
+    r['tn_ones'] = tn_ones
+    r['fp_ones'] = fp_ones
+    r['fn_ones'] = fn_ones
+    r['tp_ones'] = tp_ones
     return r
 
 
@@ -117,19 +123,13 @@ def get_Data(csv_path, separator, input_sequence_col, label_col, tokenizer, chrm
     df = pd.read_csv(csv_path, sep=separator, usecols=[input_sequence_col, label_col, 'chrm', 'transcript_name']).reset_index(drop=True)
 
     # chrm_split dict should be in the form:
-    # chrm_split={
-    #     1:{'train':[],
-    #         'val':[],
-    #         'test':[]},
-    #     2:{'train':[],
-    #         'val':[],
-    #         'test':[]},}
+    # chrm_split={<split1>:{'train':[],'val':[],'test':[]},<split2>:{'train':[],'val':[],'test':[]}, ... }
 
 
     datasets = {
-        'train': Dataset.from_pandas(df.loc[df['chrm'].isin(chrm_split[split]['train'])]),
-        'val': Dataset.from_pandas(df.loc[df['chrm'].isin(chrm_split[split]['val'])]),
-        'test': Dataset.from_pandas(df.loc[df['chrm'].isin(chrm_split[split]['test'])])
+        'train': Dataset.from_pandas(df.loc[df['chrm'].isin(chrm_split[split]['train'])][:5]),
+        'val': Dataset.from_pandas(df.loc[df['chrm'].isin(chrm_split[split]['val'])][:5]),
+        'test': Dataset.from_pandas(df.loc[df['chrm'].isin(chrm_split[split]['test'])][:15])
     }
     for name, dataset in datasets.items():
         datasets[name] = dataset.map(tokenise_input_seq_and_labels, fn_kwargs={"label_name": label_col, "sequence_name": input_sequence_col, "max_length": max_length, "tokenizer": tokenizer})

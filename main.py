@@ -10,6 +10,7 @@ import sys
 import traceback
 import numpy as np
 import pandas as pd
+import code
 ###imports
 from utils import tokenise_input_seq_and_labels, get_Data, compute_metrics
 
@@ -50,7 +51,6 @@ def parse_arguments():
     print(f'args1: {args}')
 
     #argument for model training
-    parser.add_argument('--remove_unused_columns', default=False, help='Remove unused columns')
     parser.add_argument('--evaluation_strategy', default="steps", help='Evaluation strategy')
     parser.add_argument('--save_strategy', default="steps", help='Save strategy')
     parser.add_argument('--save_steps', type=int, default=50, help='Save steps')
@@ -83,8 +83,8 @@ def parse_arguments():
     config=load_config(args.config_file)
     for k, v in config.items():
         setattr(args, k, v)
-    print(f'args333 {args}')
-    print(f'config: {type(args)}')
+    # print(f'args333 {args}')
+    # print(f'config: {type(args)}')
     args.chrm_split = config['chrm_split']
 
     # config = load_config(args.config_file)
@@ -174,18 +174,24 @@ def main():
 
         # Parse the command-line arguments
         args = parse_arguments()
-        print(args.num_labels)
+
         device = torch.device("cuda")
-        print(args.predict)
-        os.environ['WANDB_DIR'] = args.offline_wandb_path
+
+        #this check if we ask a prediction
         if args.predict==True:
+            #this check if the fold already exist
             if os.path.exists(f"{args.output_dir}-split{split}"):
+
+                #model loading and lora modifications loading
                 model = AutoModelForTokenClassification.from_pretrained(f"{args.output_dir}-split{split}-final", num_labels=args.num_labels, trust_remote_code=True)
                 peft_model = PeftModel.from_pretrained(model, model_id=f"{args.output_dir}-split{split}-final", num_labels=args.num_labels)
                 peft_model.to(device)
                 tokenizer = AutoTokenizer.from_pretrained(args.model_directory,trust_remote_code=True)
-                _, _, test=get_Data(args.input_file, args.separator, args.input_sequence_col, args.label_col, tokenizer, args.chrm_split, split)
 
+                #get the input datas 
+
+                _, _, test=get_Data(args.input_file, args.separator, args.input_sequence_col, args.label_col, tokenizer, args.chrm_split, split)
+                
                 # Initialize the TrainingArguments
                 training_args = TrainingArguments(
                     output_dir=f"{args.output_dir}-split{split}-final",
@@ -210,47 +216,48 @@ def main():
                 print("Predictions, labels, and metrics saved to predictions.npy, labels.npy, and metrics.npy")
             else:
                 continue
-
+        
+        #this is if predict isnt given, maybe add a mode instead TODO?
         else:
-            #check if first iteration was done previously
+            #check if fold already exist
             if os.path.exists(f"{args.output_dir}-split{split}/output.csv"):
                 continue
             else:
                 try:
-                    wandb.init(mode='offline', project=args.wandb_project_name, name=f"{args.wandb_run_name}-split{split}")
+                    wandb.init(mode='offline', project=args.wandb_project_name, name=f"{args.wandb_run_name}-split{split}", dir=args.offline_wandb_path)
                     base_dir = f"{args.output_dir}-split{split}"
-                    if os.path.exists(base_dir)and args.batch_size == 0: #batch size is there to stop checkpoint loading till merge happen
-                        dirs = os.listdir(base_dir)
-                        checkpoint_dirs = [d for d in dirs if d.startswith("checkpoint-")]
-                        latest_checkpoint_number = max(int(d.split('-')[1]) for d in checkpoint_dirs)
-                        latest_checkpoint_path = os.path.join(base_dir, f"checkpoint-{latest_checkpoint_number}")
-                        print(f"Loading model from {latest_checkpoint_path}")
+                    """ code for checkpoint loading that doesnt seem it going to be implmented
+                      #if os.path.exists(base_dir): #batch size is there to stop checkpoint loading till merge happen
+                        #dirs = os.listdir(base_dir)
+                        #checkpoint_dirs = [d for d in dirs if d.startswith("checkpoint-")]
+                        #latest_checkpoint_number = max(int(d.split('-')[1]) for d in checkpoint_dirs)
+                        #latest_checkpoint_path = os.path.join(base_dir, f"checkpoint-{latest_checkpoint_number}")
+                        #print(f"Loading model from {latest_checkpoint_path}")
         
                     #check if checkpoint exist and load model accordingly
                         #model = AutoModelForTokenClassification.from_pretrained(latest_checkpoint_path, num_labels=args.num_labels, trust_remote_code=True, output_attentions=False)
-                    else:
-                        model1 = AutoModelForTokenClassification.from_pretrained(args.model_directory, num_labels=args.num_labels, trust_remote_code=True, output_attentions=False)
+                    #else:
+                    """
+                    model1 = AutoModelForTokenClassification.from_pretrained(args.model_directory, num_labels=args.num_labels, trust_remote_code=True, output_attentions=False)
 
-                        model1.to(device)
+                    model1.to(device)
 
-                        peft_config = LoraConfig(
-                                task_type=args.task_type, inference_mode=args.inference_mode, r=args.r, lora_alpha= args.lora_alpha, lora_dropout=args.lora_dropout, target_modules=args.target_modules,
-                                )
-                        model = get_peft_model(model1, peft_config) # transform our classifier into a peft model
-                        model.print_trainable_parameters()
-                        model.to(device)
+                    peft_config = LoraConfig(
+                            task_type=args.task_type, inference_mode=args.inference_mode, r=args.r, lora_alpha= args.lora_alpha, lora_dropout=args.lora_dropout, target_modules=args.target_modules,
+                            )
+                    model = get_peft_model(model1, peft_config) # transform our classifier into a peft model
+                    model.print_trainable_parameters()
+                    model.to(device)
 
                     tokenizer = AutoTokenizer.from_pretrained(args.model_directory,trust_remote_code=True)
                     train, val, test=get_Data(args.input_file, args.separator, args.input_sequence_col, args.label_col, tokenizer, args.chrm_split, split)
-                    print(train.info.dataset_size)
-                    print(val.info.dataset_size)
-                    print(test.info.dataset_size)
-                    sys.exit()
+
                     steps_per_epoch = len(train) // args.batch_size
                     half_epoch_steps = steps_per_epoch // 4
 
-
-                    if os.path.exists(base_dir) and args.batch_size == 0:
+                    a=0
+                    #this if is for checkpointing
+                    if os.path.exists(base_dir) and a==1:
                         # model1 = AutoModelForTokenClassification.from_pretrained(latest_checkpoint_path, num_labels=args.num_labels, trust_remote_code=True, output_attentions=False)
                         # model = PeftModel.from_pretrained(model1, latest_checkpoint_path)
                         # model.to(device)
@@ -289,10 +296,30 @@ def main():
                         )
 
                         trainer.train(resume_from_checkpoint=latest_checkpoint_path, without_checkpoint_model=True)
+                    #run normal training part
                     else:
+                        # train_args = TrainingArguments(
+                        
+                        #     output_dir=f"{args.output_dir}-split{split}",
+                        #     #
+                        #     eval_strategy=args.evaluation_strategy,
+                        #     save_strategy=args.save_strategy,
+                        #     save_steps=half_epoch_steps,
+                        #     learning_rate=args.learning_rate,
+                        #     gradient_accumulation_steps= args.gradient_accumulation_steps,
+                        #     #auto_find_batch_size =True,
+                        #     num_train_epochs= args.num_train_epochs,
+                        #     logging_steps= half_epoch_steps,
+                        #     load_best_model_at_end=args.load_best_model_at_end, 
+                        #     metric_for_best_model=args.metric_for_best_model,
+                        #     label_names=['labels'],
+                        #     dataloader_drop_last=args.dataloader_drop_last,
+                        #     max_steps= steps_per_epoch,
+                        # )
                         train_args = TrainingArguments(
+            
                             output_dir=f"{args.output_dir}-split{split}",
-                            remove_unused_columns=args.remove_unused_columns,
+                            #
                             eval_strategy=args.evaluation_strategy,
                             save_strategy=args.save_strategy,
                             save_steps=half_epoch_steps,
@@ -318,35 +345,26 @@ def main():
                         trainer.train()
                     # model.config.output_attentions = True
                     #trainer.save(output_dir=f"{args.output_dir}-split{split}-final")
+
+
+
+                    
                     model.save_pretrained(f"{args.output_dir}-split{split}-final")
                     predictions, labels, metrics = trainer.predict(test.remove_columns(['transcript_name', args.input_sequence_col,'chrm','token']))
                     print(f'dimensions       {predictions.ndim} {labels.ndim}')
                     np.save('preditcions.npy', predictions)
-                    np.save('labels.npy', labels)
-                    np.save('test.npy', test['input_ids'])
-                    np.save('test_labels.npy', test['labels'])
-                    print(type(test['transcript_name']))
-                    #output_dict={}
-                    # for i,j in enumerate(test['transcript_name']):
-                    #     # print(test['transcript_name'][i])
-                    #     # print(test['input_ids'][i])
-                    #     # print(test['labels'][i])
-                    #     # print(np.argmax(predictions[i],axis=1))
-                    #     # print(labels[i])
-                    #     output_dict.append({'t_name':test['transcript_name'][i],
-                    #                         'input_ids':test['input_ids'][i],
-                    #                           'labels':test['labels'][i],
-                    #                             'predictions':np.argmax(predictions[i],axis=1).tolist(),
-                    #                               'true_labels':labels[i].tolist()})
-                    #     if i==5:
-                    #         break
+                    np.save('pred_labels.npy', labels)
+                    np.save('pred_in.npy', test['input_ids'])
+                    np.save('pred_inlabels.npy', test['labels'])
+
+                    #code.interact(local=locals())
                     output_dict={'t_name':test['transcript_name'],
-                    'input_ids':test['input_ids'],
-                    'token':test['token'],
-                        'labels':test['labels'],
-                        'predictions':np.argmax(predictions,axis=2).tolist(),
-                            'true_labels':labels.tolist(),
-                            'sequence':test[args.input_sequence_col]}
+                                'input_ids':test['input_ids'],
+                                'token':test['token'],
+                                'labels':test['labels'],
+                                'predictions':np.argmax(predictions,axis=2).tolist(),
+                                'true_labels':labels.tolist(),
+                                'sequence':test[args.input_sequence_col]}
                     
                     # output_dict = {
                     # 't_name': test['transcript_name'],
@@ -361,7 +379,6 @@ def main():
 
                     output_df = pd.DataFrame(output_dict)
                     output_df.to_csv(f"{args.output_dir}-split{split}/output.csv", index=False)
-                    np.save(f"{args.output_dir}-split{split}/predictions.npy", predictions)
                     test_metrics = {f"test/{k}": v for k, v in metrics.items()}
                     wandb.log(test_metrics)
                 except Exception as e:
