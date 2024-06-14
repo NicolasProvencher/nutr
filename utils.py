@@ -30,12 +30,11 @@ def compute_metrics(eval_pred):
         'tp': tp,
 
         }
-    confusion_matrix_ones = confusion_matrix(references, predictions, labels=[1])
-    tn_ones, fp_ones, fn_ones, tp_ones = confusion_matrix_ones.ravel()
-    r['tn_ones'] = tn_ones
-    r['fp_ones'] = fp_ones
-    r['fn_ones'] = fn_ones
-    r['tp_ones'] = tp_ones
+    # tn_ones, fp_ones, fn_ones, tp_ones= confusion_matrix(references, predictions, labels=[1]).ravel()
+    # r['tn_ones'] = tn_ones
+    # r['fp_ones'] = fp_ones
+    # r['fn_ones'] = fn_ones
+    # r['tp_ones'] = tp_ones
     return r
 
 

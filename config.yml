@@ -1,8 +1,8 @@
 #File with argument to give main.py to be able to run it correctly without using defualt settings
 
-batch_size : 1
-input_file : "/home/roucoulab/Desktop/nutr_tutorial/nutr_data_test.csv"
-model_directory: "InstaDeepAI/nucleotide-transformer-v2-50m-multi-species"
+batch_size : 2
+input_file : "/home/noxatras/projects/def-xroucou/noxatras/nutr/input/nutr_data_test.csv"
+model_directory: "/home/noxatras/projects/def-xroucou/noxatras/nutr/nucleotide-transformer-v2-500m-multi-species"
 chrm_split:
   1:
     train: ["3", "5", "7", "11", "13", "15", "19", "21", "X"]
@@ -15,9 +15,7 @@ chrm_split:
 
 
 wandb_project_name: "narval test"
-wandb_run_name: "partest6"
-offline_wandb_path: "/home/roucoulab/Desktop/SLURM_TMPDIR"
-logging_dir: "/home/roucoulab/Desktop/SLURM_TMPDIR"
-output_dir: "/home/roucoulab/Desktop/SLURM_TMPDIR/partest6"
-model_dir: "/home/roucoulab/Desktop/slurm_tmpdir/model/nucleotide-transformer-v2-50m-multi-species"
+wandb_run_name: "1"
+offline_wandb_path: "/home/noxatras/scratch/nutr/wandb"
+output_dir: "/home/noxatras/scratch/nutr/output/1"
 input_sequence_col: "sequence"
