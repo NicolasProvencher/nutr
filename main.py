@@ -244,6 +244,7 @@ def main():
                             max_steps= steps_per_epoch,
                             auto_find_batch_size=False,
                         )
+                        print(val)
                         trainer = Trainer(
                             model=model,
                             args=train_args,
@@ -254,21 +255,28 @@ def main():
                         trainer.train()
                     
                     model.save_pretrained(f"{args.output_dir}-split{split}-final")
-                    predictions, labels, metrics = trainer.predict(test.remove_columns(['transcript_name', args.input_sequence_col,'chrm','token']))
-                    np.save('preditcions.npy', predictions)
-                    np.save('pred_labels.npy', labels)
-                    np.save('pred_in.npy', test['input_ids'])
-                    np.save('pred_inlabels.npy', test['labels'])
+                    # predictions, labels, metrics = trainer.predict(test.remove_columns(['transcript_name', args.input_sequence_col,'chrm','token']))
+                    output = trainer.predict(test.remove_columns(['transcript_name', args.input_sequence_col,'chrm','token']))
+                    mask=output.label_ids!=-100
+                    filtered_pred = output.predictions[mask]
+                    filtered_labels = output.label_ids[mask]
+                    #filtered_metrics = compute_metrics(filtered_pred, filtered_labels)
 
-                    #code.interact(local=locals())
+                    # np.save('preditcions.npy', predictions)
+                    # np.save('pred_labels.npy', labels)
+                    # np.save('pred_in.npy', test['input_ids'])
+                    # np.save('pred_inlabels.npy', test['labels'])
+
+                    code.interact(local=locals())
                     output_dict={'t_name':test['transcript_name'],
                                 'input_ids':test['input_ids'],
                                 'token':test['token'],
                                 'labels':test['labels'],
-                                'predictions':np.argmax(predictions,axis=2).tolist(),
-                                'true_labels':labels.tolist(),
+                                'predictions':np.argmax(filtered_pred,axis=2).tolist(),
+                                'true_labels':filtered_labels.tolist(),
                                 'sequence':test[args.input_sequence_col]}
                     code.interact(local=locals())
+                    print(output_dict)
                     output_df = pd.DataFrame(output_dict)
                     output_df.to_csv(f"{args.output_dir}-split{split}/output.csv", index=False)
                     test_metrics = {f"test/{k}": v for k, v in metrics.items()}

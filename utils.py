@@ -30,11 +30,7 @@ def compute_metrics(eval_pred):
         'tp': tp,
 
         }
-    # tn_ones, fp_ones, fn_ones, tp_ones= confusion_matrix(references, predictions, labels=[1]).ravel()
-    # r['tn_ones'] = tn_ones
-    # r['fp_ones'] = fp_ones
-    # r['fn_ones'] = fn_ones
-    # r['tp_ones'] = tp_ones
+    print(r)
     return r
 
 
@@ -130,6 +126,7 @@ def get_Data(csv_path, separator, input_sequence_col, label_col, tokenizer, chrm
         'val': Dataset.from_pandas(df.loc[df['chrm'].isin(chrm_split[split]['val'])][:5]),
         'test': Dataset.from_pandas(df.loc[df['chrm'].isin(chrm_split[split]['test'])][:15])
     }
+
     for name, dataset in datasets.items():
         datasets[name] = dataset.map(tokenise_input_seq_and_labels, fn_kwargs={"label_name": label_col, "sequence_name": input_sequence_col, "max_length": max_length, "tokenizer": tokenizer})
         datasets[name] = datasets[name].remove_columns([ '__index_level_0__'])
