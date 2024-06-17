@@ -258,8 +258,12 @@ def main():
                     # predictions, labels, metrics = trainer.predict(test.remove_columns(['transcript_name', args.input_sequence_col,'chrm','token']))
                     output = trainer.predict(test.remove_columns(['transcript_name', args.input_sequence_col,'chrm','token']))
                     mask=output.label_ids!=-100
-                    filtered_pred = output.predictions[mask]
-                    filtered_labels = output.label_ids[mask]
+
+
+
+                    am_pred=np.argmax(output.predictions,axis=2)
+                    filtered_pred = [subarray[mask[i]].tolist() for i, subarray in enumerate(am_pred)]
+                    filtered_labels = [subarray[mask[i]].tolist() for i, subarray in enumerate(output.label_ids)]
                     #filtered_metrics = compute_metrics(filtered_pred, filtered_labels)
 
                     # np.save('preditcions.npy', predictions)
@@ -267,19 +271,19 @@ def main():
                     # np.save('pred_in.npy', test['input_ids'])
                     # np.save('pred_inlabels.npy', test['labels'])
 
-                    code.interact(local=locals())
+                    #code.interact(local=locals())
                     output_dict={'t_name':test['transcript_name'],
                                 'input_ids':test['input_ids'],
                                 'token':test['token'],
                                 'labels':test['labels'],
-                                'predictions':np.argmax(filtered_pred,axis=2).tolist(),
-                                'true_labels':filtered_labels.tolist(),
+                                'predictions':filtered_pred,
+                                'true_labels':filtered_labels,
                                 'sequence':test[args.input_sequence_col]}
-                    code.interact(local=locals())
-                    print(output_dict)
+                    #code.interact(local=locals())
                     output_df = pd.DataFrame(output_dict)
                     output_df.to_csv(f"{args.output_dir}-split{split}/output.csv", index=False)
-                    test_metrics = {f"test/{k}": v for k, v in metrics.items()}
+                    #code.interact(local=locals())
+                    test_metrics = {f"test/{k}": v for k, v in output.metrics.items()}
                     wandb.log(test_metrics)
                 except Exception as e:
                     print(e)
