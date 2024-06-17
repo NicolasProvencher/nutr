@@ -1,7 +1,7 @@
 #File with argument to give main.py to be able to run it correctly without using defualt settings
 
 batch_size : 2
-input_file : "/home/noxatras/projects/def-xroucou/noxatras/nutr/input/nutr_data_test.csv"
+input_file : "/home/noxatras/projects/def-xroucou/noxatras/nutr/input/nutr_data_all.csv"
 model_directory: "/home/noxatras/projects/def-xroucou/noxatras/nutr/nucleotide-transformer-v2-500m-multi-species"
 chrm_split:
   1:

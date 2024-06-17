@@ -178,10 +178,16 @@ def main():
 
                     #decide step and save strategy
                     steps_per_epoch = len(train)
-                    save_eval_freq = steps_per_epoch // 4
+                    save_eval_freq = steps_per_epoch // 20
+
+                    print(args.save_strategy)
+                    print(args.evaluation_strategy)
+                    print(save_eval_freq)
+                    print(args.num_train_epochs)
+                    print(steps_per_epoch)
 
                     a=0
-                    
+
                     if a==1:#this if is for checkpointing
                     #if os.path.exists(base_dir) and a==1:#this if is for checkpointing
                         print('not implemented yet')
@@ -256,6 +262,7 @@ def main():
                     
                     model.save_pretrained(f"{args.output_dir}-split{split}-final")
                     # predictions, labels, metrics = trainer.predict(test.remove_columns(['transcript_name', args.input_sequence_col,'chrm','token']))
+                    train_args.dataloader_drop_last = False
                     output = trainer.predict(test.remove_columns(['transcript_name', args.input_sequence_col,'chrm','token']))
                     mask=output.label_ids!=-100
 
@@ -271,7 +278,6 @@ def main():
                     # np.save('pred_in.npy', test['input_ids'])
                     # np.save('pred_inlabels.npy', test['labels'])
 
-                    #code.interact(local=locals())
                     output_dict={'t_name':test['transcript_name'],
                                 'input_ids':test['input_ids'],
                                 'token':test['token'],
@@ -279,10 +285,9 @@ def main():
                                 'predictions':filtered_pred,
                                 'true_labels':filtered_labels,
                                 'sequence':test[args.input_sequence_col]}
-                    #code.interact(local=locals())
                     output_df = pd.DataFrame(output_dict)
                     output_df.to_csv(f"{args.output_dir}-split{split}/output.csv", index=False)
-                    #code.interact(local=locals())
+
                     test_metrics = {f"test/{k}": v for k, v in output.metrics.items()}
                     wandb.log(test_metrics)
                 except Exception as e:
