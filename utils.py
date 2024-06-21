@@ -4,7 +4,7 @@ import torch
 import numpy as np
 from datasets import Dataset
 import pandas as pd
-
+import code
 
 
 
@@ -93,22 +93,20 @@ def tokenise_input_seq_and_labels(example, max_length, tokenizer, label_name, se
                 new_labels.append(1)
             else:
                 new_labels.append(0)
-    # print(len(new_labels))
-    #print(new_labels)
+
+    #add a -100 to ignore the <cls> token
+    new_labels.insert(0, -100)
     labels_tensor = torch.tensor(new_labels)
-    #print(labels_tensor)
+
     if len(labels_tensor) < max_length:
         labels_tensor = F.pad(labels_tensor, pad=(0, max_length - len(labels_tensor)), value=-100)
 
     example['labels'] = labels_tensor
     token=tokenizer(example[sequence_name],return_tensors="pt",padding="max_length", max_length = max_length)
-    #print(example['labels'])
     example['input_ids'] = token['input_ids'][0]
     example['attention_mask'] = token['attention_mask'][0]
     example['token']=tokenizer.decode(token['input_ids'][0].tolist())
-    # print(token['input_ids'].shape)
-    # print(token['input_ids'][-5:])
-    # print(type(example))
+
     
     return example
 
@@ -122,9 +120,9 @@ def get_Data(csv_path, separator, input_sequence_col, label_col, tokenizer, chrm
 
 
     datasets = {
-        'train': Dataset.from_pandas(df.loc[df['chrm'].isin(chrm_split[split]['train'])]),
-        'val': Dataset.from_pandas(df.loc[df['chrm'].isin(chrm_split[split]['val'])]),
-        'test': Dataset.from_pandas(df.loc[df['chrm'].isin(chrm_split[split]['test'])])
+        'train': Dataset.from_pandas(df.loc[df['chrm'].isin(chrm_split[split]['train'])][:5]),
+        'val': Dataset.from_pandas(df.loc[df['chrm'].isin(chrm_split[split]['val'])][:5]),
+        'test': Dataset.from_pandas(df.loc[df['chrm'].isin(chrm_split[split]['test'])][:5])
     }
 
     for name, dataset in datasets.items():
