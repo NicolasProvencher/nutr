@@ -249,6 +249,7 @@ def main():
                             dataloader_drop_last=args.dataloader_drop_last,
                             max_steps= steps_per_epoch,
                             auto_find_batch_size=False,
+                            disable_tqdm=True,
                         )
                         print(val)
                         trainer = Trainer(
