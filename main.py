@@ -43,7 +43,7 @@ def parse_arguments():
     #arguments for LoRa
     parser.add_argument('--task_type', default=TaskType.TOKEN_CLS, help='Task type')
     parser.add_argument('--inference_mode', type=bool, default=False, help='Inference mode')
-    parser.add_argument('--r', type=int, default=1, help='R')
+    parser.add_argument('--r', type=int, default=4, help='R')
     parser.add_argument('--lora_alpha', type=int, default=32, help='LoRa alpha')
     parser.add_argument('--lora_dropout', type=float, default=0.1, help='LoRa dropout')
     parser.add_argument('--target_modules', nargs='+', default=["query", "value"], help='Target modules')
@@ -86,8 +86,7 @@ def parse_arguments():
 
 
 def main():
-
-    for split in range(1, 3):
+    for split in range(1, 2):
 
         # Parse the command-line arguments
         args = parse_arguments()
@@ -178,7 +177,7 @@ def main():
 
                     #decide step and save strategy
                     steps_per_epoch = len(train)
-                    save_eval_freq = steps_per_epoch // 20
+                    save_eval_freq = steps_per_epoch // 2
 
                     print(args.save_strategy)
                     print(args.evaluation_strategy)
@@ -249,9 +248,10 @@ def main():
                             dataloader_drop_last=args.dataloader_drop_last,
                             max_steps= steps_per_epoch,
                             auto_find_batch_size=False,
-                            disable_tqdm=True,
+                            disable_tqdm=False,
+
                         )
-                        print(val)
+                        #print(val)
                         trainer = Trainer(
                             model=model,
                             args=train_args,

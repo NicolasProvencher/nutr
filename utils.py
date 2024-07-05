@@ -4,7 +4,7 @@ import torch
 import numpy as np
 from datasets import Dataset
 import pandas as pd
-
+import code
 
 
 
@@ -115,16 +115,23 @@ def tokenise_input_seq_and_labels(example, max_length, tokenizer, label_name, se
 
 def get_Data(csv_path, separator, input_sequence_col, label_col, tokenizer, chrm_split, split):
     max_length = tokenizer.model_max_length
+    print('max')
+    print(max_length)
+    print()
     df = pd.read_csv(csv_path, sep=separator, usecols=[input_sequence_col, label_col, 'chrm', 'transcript_name']).reset_index(drop=True)
+    print(df.shape)
+    df = df[df['sequence'].apply(len) <= max_length*6-6]
+    print(df.shape)
+    #code.interact(local=locals())
 
     # chrm_split dict should be in the form:
     # chrm_split={<split1>:{'train':[],'val':[],'test':[]},<split2>:{'train':[],'val':[],'test':[]}, ... }
 
 
     datasets = {
-        'train': Dataset.from_pandas(df.loc[df['chrm'].isin(chrm_split[split]['train'])]),
-        'val': Dataset.from_pandas(df.loc[df['chrm'].isin(chrm_split[split]['val'])]),
-        'test': Dataset.from_pandas(df.loc[df['chrm'].isin(chrm_split[split]['test'])])
+        'train': Dataset.from_pandas(df.loc[df['chrm'].isin(chrm_split[split]['train'])][:50]),
+        'val': Dataset.from_pandas(df.loc[df['chrm'].isin(chrm_split[split]['val'])][:50]),
+        'test': Dataset.from_pandas(df.loc[df['chrm'].isin(chrm_split[split]['test'])][:50])
     }
 
     for name, dataset in datasets.items():

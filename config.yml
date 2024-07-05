@@ -1,8 +1,8 @@
 #File with argument to give main.py to be able to run it correctly without using defualt settings
 
-batch_size : 2
+batch_size : 8
 input_file : "/home/noxatras/projects/def-xroucou/noxatras/nutr/input/nutr_data_all.csv"
-model_directory: "/home/noxatras/projects/def-xroucou/noxatras/nutr/nucleotide-transformer-v2-500m-multi-species"
+model_directory: "/home/noxatras/projects/def-xroucou/noxatras/nutr/nucleotide-transformer-500m-1000g"
 chrm_split:
   1:
     train: ["3", "5", "7", "11", "13", "15", "19", "21", "X"]
@@ -15,7 +15,7 @@ chrm_split:
 
 
 wandb_project_name: "narval test"
-wandb_run_name: "1"
+wandb_run_name: "2"
 offline_wandb_path: "/home/noxatras/scratch/nutr/wandb"
-output_dir: "/home/noxatras/scratch/nutr/output/1"
+output_dir: "/home/noxatras/scratch/nutr/output/2"
 input_sequence_col: "sequence"
