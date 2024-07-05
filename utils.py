@@ -127,9 +127,9 @@ def get_Data(csv_path, separator, input_sequence_col, label_col, tokenizer, chrm
 
 
     datasets = {
-        'train': Dataset.from_pandas(df.loc[df['chrm'].isin(chrm_split[split]['train'])][:50]),
-        'val': Dataset.from_pandas(df.loc[df['chrm'].isin(chrm_split[split]['val'])][:50]),
-        'test': Dataset.from_pandas(df.loc[df['chrm'].isin(chrm_split[split]['test'])][:50])
+        'train': Dataset.from_pandas(df.loc[df['chrm'].isin(chrm_split[split]['train'])]),
+        'val': Dataset.from_pandas(df.loc[df['chrm'].isin(chrm_split[split]['val'])]),
+        'test': Dataset.from_pandas(df.loc[df['chrm'].isin(chrm_split[split]['test'])])
     }
 
     for name, dataset in datasets.items():

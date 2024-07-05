@@ -52,14 +52,14 @@ def parse_arguments():
     #argument for model training
     parser.add_argument('--evaluation_strategy', default="steps", help='Evaluation strategy')
     parser.add_argument('--save_strategy', default="steps", help='Save strategy')
-    parser.add_argument('--save_steps', type=int, default=50, help='Save steps')
+    parser.add_argument('--save_steps', type=int, default=None, help='Save steps')
     parser.add_argument('--learning_rate', type=float, default=5e-4, help='Learning rate')
     parser.add_argument('--gradient_accumulation_steps', type=int, default=1, help='Gradient accumulation steps')
     parser.add_argument('--per_device_eval_batch_size', type=int, default=64, help='Per device eval batch size')
     parser.add_argument('--num_train_epochs', type=int, default=2, help='Number of training epochs')
     parser.add_argument('--logging_steps', type=int, default=25, help='Logging steps')
     parser.add_argument('--load_best_model_at_end', default=False, help='Load the best model at the end')
-    parser.add_argument('--metric_for_best_model', default="pr_auc", help='Metric for best model')
+    parser.add_argument('--metric_for_best_model', default="loss", help='Metric for best model')
     parser.add_argument('--dataloader_drop_last', default=True, help='Drop last batch in dataloader')
     parser.add_argument('--report_to', default='wandb', help='Report to')
     parser.add_argument('--output_dir', default="./output", help='Output directory')
@@ -120,31 +120,53 @@ def main():
 
                     #decide step and save strategy
                     steps_per_epoch = len(train)
-                    save_eval_freq = steps_per_epoch // 2
+                    # save_eval_freq = steps_per_epoch // 2
 
                     
                     train_args = TrainingArguments(
                         output_dir=out_str,
                         evaluation_strategy=args.evaluation_strategy,
                         save_strategy=args.save_strategy,
-                        save_steps=save_eval_freq,
-                        logging_steps= save_eval_freq,
+                        #save_steps=save_eval_freq,
+                        logging_steps= steps_per_epoch,
                         learning_rate=args.learning_rate,
                         per_device_train_batch_size=args.batch_size,
                         gradient_accumulation_steps= args.gradient_accumulation_steps,
                         per_device_eval_batch_size= args.batch_size,
                         num_train_epochs= args.num_train_epochs,
-                        load_best_model_at_end=args.load_best_model_at_end, 
+                        load_best_model_at_end=args.load_best_model_at_end,
                         metric_for_best_model=args.metric_for_best_model,
                         label_names=['labels'],
                         dataloader_drop_last=args.dataloader_drop_last,
-                        max_steps= steps_per_epoch,
+                        #max_steps= steps_per_epoch,
                         auto_find_batch_size=False,
                         disable_tqdm=False,
 
                     )
-                    #print(val)
-                    trainer = Trainer(
+                    class CustomTrainer(Trainer):
+                        def compute_loss(self, model, inputs, return_outputs=False):
+                            outputs = model(**inputs)
+                            logits = outputs.logits
+                            labels = inputs['labels']
+                            #print(outputs)
+                            # Mask for valid labels (not padding)
+                            valid_mask = labels != -100
+
+                            # Adjust logits and labels according to the valid mask
+                            valid_logits = logits.view(-1, self.model.config.num_labels)[valid_mask.view(-1)]
+                            valid_labels = labels[valid_mask]
+
+                            # Create a tensor of weights for valid labels
+                            weights = torch.tensor([0.1, 1], device=valid_logits.device)
+
+                            # Compute the loss manually for each label and apply weights
+                            loss_fct = torch.nn.CrossEntropyLoss(weight=weights)  # Compute loss without reduction
+                            loss = loss_fct(valid_logits, valid_labels)
+
+                            return (loss, outputs) if return_outputs else loss
+
+
+                    trainer = CustomTrainer(
                         model=model,
                         args=train_args,
                         train_dataset=train,
@@ -157,29 +179,29 @@ def main():
                     # predictions, labels, metrics = trainer.predict(test.remove_columns(['transcript_name', args.input_sequence_col,'chrm','token']))
                     train_args.dataloader_drop_last = False
                     output = trainer.predict(test.remove_columns(['transcript_name', args.input_sequence_col,'chrm','token']))
-                    mask=output.label_ids!=-100
+                    # mask=output.label_ids!=-100
+                    #code.interact(local=locals())
 
 
+                    # am_pred=np.argmax(output.predictions,axis=2)
+                    # filtered_pred = [subarray[mask[i]].tolist() for i, subarray in enumerate(am_pred)]
+                    # filtered_labels = [subarray[mask[i]].tolist() for i, subarray in enumerate(output.label_ids)]
+                    # #filtered_metrics = compute_metrics(filtered_pred, filtered_labels)
 
-                    am_pred=np.argmax(output.predictions,axis=2)
-                    filtered_pred = [subarray[mask[i]].tolist() for i, subarray in enumerate(am_pred)]
-                    filtered_labels = [subarray[mask[i]].tolist() for i, subarray in enumerate(output.label_ids)]
-                    #filtered_metrics = compute_metrics(filtered_pred, filtered_labels)
+                    # # np.save('preditcions.npy', predictions)
+                    # # np.save('pred_labels.npy', labels)
+                    # # np.save('pred_in.npy', test['input_ids'])
+                    # # np.save('pred_inlabels.npy', test['labels'])
 
-                    # np.save('preditcions.npy', predictions)
-                    # np.save('pred_labels.npy', labels)
-                    # np.save('pred_in.npy', test['input_ids'])
-                    # np.save('pred_inlabels.npy', test['labels'])
-
-                    output_dict={'t_name':test['transcript_name'],
-                                'input_ids':test['input_ids'],
-                                'token':test['token'],
-                                'labels':test['labels'],
-                                'predictions':filtered_pred,
-                                'true_labels':filtered_labels,
-                                'sequence':test[args.input_sequence_col]}
-                    output_df = pd.DataFrame(output_dict)
-                    output_df.to_csv(f"{out_str}/output.csv", index=False)
+                    # output_dict={'t_name':test['transcript_name'],
+                    #             'input_ids':test['input_ids'],
+                    #             'token':test['token'],
+                    #             'labels':test['labels'],
+                    #             'predictions':filtered_pred,
+                    #             'true_labels':filtered_labels,
+                    #             'sequence':test[args.input_sequence_col]}
+                    # output_df = pd.DataFrame(output_dict)
+                    # output_df.to_csv(f"{out_str}/output.csv", index=False)
 
                     test_metrics = {f"test/{k}": v for k, v in output.metrics.items()}
                     wandb.log(test_metrics)
