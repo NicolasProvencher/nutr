@@ -29,7 +29,6 @@ def parse_arguments():
 
 
     #arguments for input
-
     parser.add_argument('--input_file', help='Train CSV input file', type=str)
     parser.add_argument('--separator', default=',', help='Separator of the CSV input file')
     parser.add_argument('--input_sequence_col', default='data', help='Name of the column containing input sequences')
@@ -55,7 +54,6 @@ def parse_arguments():
     parser.add_argument('--save_strategy', default="steps", help='Save strategy')
     parser.add_argument('--save_steps', type=int, default=50, help='Save steps')
     parser.add_argument('--learning_rate', type=float, default=5e-4, help='Learning rate')
-
     parser.add_argument('--gradient_accumulation_steps', type=int, default=1, help='Gradient accumulation steps')
     parser.add_argument('--per_device_eval_batch_size', type=int, default=64, help='Per device eval batch size')
     parser.add_argument('--num_train_epochs', type=int, default=2, help='Number of training epochs')
@@ -67,7 +65,7 @@ def parse_arguments():
     parser.add_argument('--output_dir', default="./output", help='Output directory')
 
 
-
+    #wandb
     parser.add_argument('--offline_wandb_path', help='Offline wandb path')
     parser.add_argument('--wandb_project_name', help='Wandb project')
     parser.add_argument('--wandb_run_name', help='Wandb run name')
@@ -86,78 +84,23 @@ def parse_arguments():
 
 
 def main():
+    # Parse the command-line arguments
+    args = parse_arguments()
+    device = torch.device("cuda")
     for split in range(1, 2):
+            out_str=f"{args.output_dir}-split{split}"
+            out_final_str=f"{args.output_dir}-split{split}-final"
 
-        # Parse the command-line arguments
-        args = parse_arguments()
 
-        device = torch.device("cuda")
-
-        
-        if args.predict==True:#this check if we ask a prediction
-            #this check if the fold already exist
-            if os.path.exists(f"{args.output_dir}-split{split}"):
-
-                #model loading and lora modifications loading
-                model = AutoModelForTokenClassification.from_pretrained(f"{args.output_dir}-split{split}-final", num_labels=args.num_labels, trust_remote_code=True)
-                peft_model = PeftModel.from_pretrained(model, model_id=f"{args.output_dir}-split{split}-final", num_labels=args.num_labels)
-                peft_model.to(device)
-                tokenizer = AutoTokenizer.from_pretrained(args.model_directory,trust_remote_code=True)
-
-                #get the input datas 
-
-                _, _, test=get_Data(args.input_file, args.separator, args.input_sequence_col, args.label_col, tokenizer, args.chrm_split, split)
-                
-                # Initialize the TrainingArguments
-                training_args = TrainingArguments(
-                    output_dir=f"{args.output_dir}-split{split}-final",
-                    per_device_eval_batch_size=args.batch_size,
-                )
-
-                # Initialize the Trainer
-                trainer = Trainer(
-                    model=peft_model,
-                    args=training_args,
-                    compute_metrics=compute_metrics,
-                )
-
-                # Run the prediction task
-                predictions, labels, metrics = trainer.predict(test)
-
-                # Save the predictions, labels, and metrics
-                np.save(f"{args.output_dir}-split{split}-final/predictions.npy", predictions)
-                np.save(f"{args.output_dir}-split{split}-final/labels.npy", labels)
-                np.save(f"{args.output_dir}-split{split}-final/metrics.npy", metrics)
-
-                print("Predictions, labels, and metrics saved to predictions.npy, labels.npy, and metrics.npy")
-            else:
-                continue
-        
-       
-        else: #this is if predict isnt given, maybe add a mode instead TODO?
             #check if fold already exist
-            if os.path.exists(f"{args.output_dir}-split{split}/output.csv"):
+            if os.path.exists(f"{out_str}/output.csv"):
                 continue
-            elif os.path.exists(f"{args.output_dir}-split{split}"):
+            elif os.path.exists(out_str):
                 #TODO add a way to do prediction from the saved model
                 sys.exit(f"Output directory {args.output_dir}-split{split} already exists. this means the trainer has been done completly or partially. ")
             else: #this runs when the run and fold dont exists
                 try:#this is so i can end every wandb run
-                    wandb.init(mode='offline', project=args.wandb_project_name, name=f"{args.wandb_run_name}-split{split}", dir=args.offline_wandb_path)
-                    """
-                    base_dir = f"{args.output_dir}-split{split}"
-                     code for checkpoint loading that doesnt seem it going to be implmented
-                      #if os.path.exists(base_dir): #batch size is there to stop checkpoint loading till merge happen
-                        #dirs = os.listdir(base_dir)
-                        #checkpoint_dirs = [d for d in dirs if d.startswith("checkpoint-")]
-                        #latest_checkpoint_number = max(int(d.split('-')[1]) for d in checkpoint_dirs)
-                        #latest_checkpoint_path = os.path.join(base_dir, f"checkpoint-{latest_checkpoint_number}")
-                        #print(f"Loading model from {latest_checkpoint_path}")
-        
-                    #check if checkpoint exist and load model accordingly
-                        #model = AutoModelForTokenClassification.from_pretrained(latest_checkpoint_path, num_labels=args.num_labels, trust_remote_code=True, output_attentions=False)
-                    #else:
-                    """
+                    wandb.init(mode='offline', project=args.wandb_project_name, name=out_str, dir=args.offline_wandb_path)
                     #load model and load modification
                     model1 = AutoModelForTokenClassification.from_pretrained(args.model_directory, num_labels=args.num_labels, trust_remote_code=True, output_attentions=False)
                     peft_config = LoraConfig(
@@ -179,89 +122,38 @@ def main():
                     steps_per_epoch = len(train)
                     save_eval_freq = steps_per_epoch // 2
 
-                    print(args.save_strategy)
-                    print(args.evaluation_strategy)
-                    print(save_eval_freq)
-                    print(args.num_train_epochs)
-                    print(steps_per_epoch)
-
-                    a=0
-
-                    if a==1:#this if is for checkpointing
-                    #if os.path.exists(base_dir) and a==1:#this if is for checkpointing
-                        print('not implemented yet')
-                        # # model1 = AutoModelForTokenClassification.from_pretrained(latest_checkpoint_path, num_labels=args.num_labels, trust_remote_code=True, output_attentions=False)
-                        # # model = PeftModel.from_pretrained(model1, latest_checkpoint_path)
-                        # # model.to(device)
-                        # #model1 = AutoModelForTokenClassification.from_pretrained(args.model_directory, num_labels=args.num_labels, trust_remote_code=True, output_attentions=False)
-
-                        # model = AutoModelForTokenClassification.from_pretrained(latest_checkpoint_path, num_labels=args.num_labels, trust_remote_code=True)
-                        # peft_model = PeftModel.from_pretrained(model, model_id=latest_checkpoint_path, num_labels=args.num_labels)
-
-                        # #model1 = AutoModelForTokenClassification.from_pretrained(latest_checkpoint_path, num_labels=args.num_labels, trust_remote_code=True, output_attentions=False)
-                        # #model = PeftModel.from_pretrained(model1, model_id=latest_checkpoint_path, num_labels=args.num_labels)
-
-                        # train_args = TrainingArguments(
-                        #     output_dir=f"{args.output_dir}-split{split}",
-                        #     remove_unused_columns=args.remove_unused_columns,
-                        #     evaluation_strategy=args.evaluation_strategy,
-                        #     save_strategy=args.save_strategy,
-                        #     save_steps=half_epoch_steps,
-                        #     learning_rate=args.learning_rate,
-                        #     per_device_train_batch_size=args.batch_size,
-                        #     gradient_accumulation_steps= args.gradient_accumulation_steps,
-                        #     per_device_eval_batch_size= args.batch_size,
-                        #     num_train_epochs= args.num_train_epochs,
-                        #     logging_steps= half_epoch_steps,
-                        #     load_best_model_at_end=args.load_best_model_at_end, 
-                        #     metric_for_best_model=args.metric_for_best_model,
-                        #     label_names=['labels'],
-                        #     dataloader_drop_last=args.dataloader_drop_last,
-                        #     max_steps= steps_per_epoch,
-                        # )
-                        # trainer = Trainer(
-                        #     model=peft_model,
-                        #     args=train_args,
-                        #     train_dataset=train,
-                        #     eval_dataset=val,
-                        #     compute_metrics=compute_metrics,                             
-                        # )
-
-                        # trainer.train(resume_from_checkpoint=latest_checkpoint_path, without_checkpoint_model=True)
-                    #run normal training part
-                    else:#this is run when we not checkpointing (which isnt possible for now)
-
-                        train_args = TrainingArguments(
-                            output_dir=f"{args.output_dir}-split{split}",
-                            evaluation_strategy=args.evaluation_strategy,
-                            save_strategy=args.save_strategy,
-                            save_steps=save_eval_freq,
-                            logging_steps= save_eval_freq,
-                            learning_rate=args.learning_rate,
-                            per_device_train_batch_size=args.batch_size,
-                            gradient_accumulation_steps= args.gradient_accumulation_steps,
-                            per_device_eval_batch_size= args.batch_size,
-                            num_train_epochs= args.num_train_epochs,
-                            load_best_model_at_end=args.load_best_model_at_end, 
-                            metric_for_best_model=args.metric_for_best_model,
-                            label_names=['labels'],
-                            dataloader_drop_last=args.dataloader_drop_last,
-                            max_steps= steps_per_epoch,
-                            auto_find_batch_size=False,
-                            disable_tqdm=False,
-
-                        )
-                        #print(val)
-                        trainer = Trainer(
-                            model=model,
-                            args=train_args,
-                            train_dataset=train,
-                            eval_dataset=val,
-                            compute_metrics=compute_metrics,
-                        )
-                        trainer.train()
                     
-                    model.save_pretrained(f"{args.output_dir}-split{split}-final")
+                    train_args = TrainingArguments(
+                        output_dir=out_str,
+                        evaluation_strategy=args.evaluation_strategy,
+                        save_strategy=args.save_strategy,
+                        save_steps=save_eval_freq,
+                        logging_steps= save_eval_freq,
+                        learning_rate=args.learning_rate,
+                        per_device_train_batch_size=args.batch_size,
+                        gradient_accumulation_steps= args.gradient_accumulation_steps,
+                        per_device_eval_batch_size= args.batch_size,
+                        num_train_epochs= args.num_train_epochs,
+                        load_best_model_at_end=args.load_best_model_at_end, 
+                        metric_for_best_model=args.metric_for_best_model,
+                        label_names=['labels'],
+                        dataloader_drop_last=args.dataloader_drop_last,
+                        max_steps= steps_per_epoch,
+                        auto_find_batch_size=False,
+                        disable_tqdm=False,
+
+                    )
+                    #print(val)
+                    trainer = Trainer(
+                        model=model,
+                        args=train_args,
+                        train_dataset=train,
+                        eval_dataset=val,
+                        compute_metrics=compute_metrics,
+                    )
+                    trainer.train()
+                    
+                    model.save_pretrained(out_final_str)
                     # predictions, labels, metrics = trainer.predict(test.remove_columns(['transcript_name', args.input_sequence_col,'chrm','token']))
                     train_args.dataloader_drop_last = False
                     output = trainer.predict(test.remove_columns(['transcript_name', args.input_sequence_col,'chrm','token']))
@@ -287,7 +179,7 @@ def main():
                                 'true_labels':filtered_labels,
                                 'sequence':test[args.input_sequence_col]}
                     output_df = pd.DataFrame(output_dict)
-                    output_df.to_csv(f"{args.output_dir}-split{split}/output.csv", index=False)
+                    output_df.to_csv(f"{out_str}/output.csv", index=False)
 
                     test_metrics = {f"test/{k}": v for k, v in output.metrics.items()}
                     wandb.log(test_metrics)
