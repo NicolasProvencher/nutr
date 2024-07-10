@@ -1,5 +1,5 @@
 import argparse
-from transformers import AutoTokenizer, AutoModelForMaskedLM, TrainingArguments, Trainer, AutoModelForTokenClassification, TrainerState, AutoConfig
+from transformers import AutoTokenizer, TrainingArguments, Trainer, AutoModelForTokenClassification, TrainerCallback
 import torch
 import matplotlib.pyplot as plt
 from peft import LoraConfig, TaskType, get_peft_model, PeftModel, PeftConfig
@@ -42,7 +42,7 @@ def parse_arguments():
     #arguments for LoRa
     parser.add_argument('--task_type', default=TaskType.TOKEN_CLS, help='Task type')
     parser.add_argument('--inference_mode', type=bool, default=False, help='Inference mode')
-    parser.add_argument('--r', type=int, default=4, help='R')
+    parser.add_argument('--r', type=int, default=32, help='R')
     parser.add_argument('--lora_alpha', type=int, default=32, help='LoRa alpha')
     parser.add_argument('--lora_dropout', type=float, default=0.1, help='LoRa dropout')
     parser.add_argument('--target_modules', nargs='+', default=["query", "value"], help='Target modules')
@@ -70,6 +70,8 @@ def parse_arguments():
     parser.add_argument('--wandb_project_name', help='Wandb project')
     parser.add_argument('--wandb_run_name', help='Wandb run name')
     parser.add_argument('--predict', action='store_true', help='Predict mode')
+    parser.add_argument('--l_0_w', help='Weight of 0 label in weighted cross entropy')
+    parser.add_argument('--l_1_w', help='Weight of 1 label in weighted cross entropy')
     args, _ = parser.parse_known_args()
 
 
@@ -85,6 +87,13 @@ def parse_arguments():
 
 def main():
     # Parse the command-line arguments
+
+    print("CUDA Available: ", torch.cuda.is_available())
+    print("CUDA Version: ", torch.version.cuda)
+    print("cuDNN Version: ", torch.backends.cudnn.version())
+
+
+
     args = parse_arguments()
     device = torch.device("cuda")
     for split in range(1, 2):
@@ -115,8 +124,31 @@ def main():
                     model.print_trainable_parameters()
                     model.to(device)
                     #make data and tokenize it
+
+                    print("Max Position Embeddings:", model.config.max_position_embeddings)
+
+
+
+
                     tokenizer = AutoTokenizer.from_pretrained(args.model_directory,trust_remote_code=True)
+
+
+                    max_seq_length = tokenizer.model_max_length
+                    print("Max Sequence Length:", max_seq_length)
+
+
                     train, val, test=get_Data(args.input_file, args.separator, args.input_sequence_col, args.label_col, tokenizer, args.chrm_split, split)
+                    count=0
+                    count = sum(1 for i in train['input_ids'] if len(i) > 1000)
+                    print(f"count {count}")
+                    # print(f"trainseq   {train['input_ids'].shape}")
+                    # print(f"trainlab   {train['labels'].shape}")
+                    if count > 0:
+                        code.interact(local=locals())
+                    # print(len(train['input_ids']))
+                    # print(len(val['input_ids']))
+                    # print(len(test['input_ids']))
+
 
                     #decide step and save strategy
                     steps_per_epoch = len(train)
@@ -140,9 +172,22 @@ def main():
                         dataloader_drop_last=args.dataloader_drop_last,
                         #max_steps= steps_per_epoch,
                         auto_find_batch_size=False,
-                        disable_tqdm=False,
+                        disable_tqdm=True,
+
 
                     )
+
+                    # class MemoryUsageCallback(TrainerCallback):
+                    #     def on_step_begin(self, args, state, control, **kwargs):
+                    #         print(f"Step {state.global_step} - Before step - GPU memory usage: {torch.cuda.memory_allocated()} bytes")
+
+                    #     def on_epoch_begin(self, args, state, control, **kwargs):
+                    #         print(f"Epoch {state.epoch} - Before epoch - GPU memory usage: {torch.cuda.memory_allocated()} bytes")
+
+                    #     def on_epoch_end(self, args, state, control, **kwargs):
+                    #         print(f"Epoch {state.epoch} - After epoch - GPU memory usage: {torch.cuda.memory_allocated()} bytes")
+                    # memory_callback = MemoryUsageCallback()
+
                     class CustomTrainer(Trainer):
                         def compute_loss(self, model, inputs, return_outputs=False):
                             outputs = model(**inputs)
@@ -151,13 +196,12 @@ def main():
                             #print(outputs)
                             # Mask for valid labels (not padding)
                             valid_mask = labels != -100
-
                             # Adjust logits and labels according to the valid mask
                             valid_logits = logits.view(-1, self.model.config.num_labels)[valid_mask.view(-1)]
                             valid_labels = labels[valid_mask]
 
                             # Create a tensor of weights for valid labels
-                            weights = torch.tensor([0.1, 1], device=valid_logits.device)
+                            weights = torch.tensor([args.l_0_w, args.l_1_w], device=valid_logits.device)
 
                             # Compute the loss manually for each label and apply weights
                             loss_fct = torch.nn.CrossEntropyLoss(weight=weights)  # Compute loss without reduction
@@ -172,6 +216,7 @@ def main():
                         train_dataset=train,
                         eval_dataset=val,
                         compute_metrics=compute_metrics,
+                        # callbacks=[memory_callback],
                     )
                     trainer.train()
                     

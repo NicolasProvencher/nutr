@@ -117,8 +117,9 @@ def get_Data(csv_path, separator, input_sequence_col, label_col, tokenizer, chrm
     print(max_length)
     print()
     df = pd.read_csv(csv_path, sep=separator, usecols=[input_sequence_col, label_col, 'chrm', 'transcript_name']).reset_index(drop=True)
+    df['chrm'] = df['chrm'].astype(str)
     print(df.shape)
-    df = df[df['sequence'].apply(len) <= max_length*6-6]
+    df = df[df['sequence'].apply(len) <= (max_length*6)-26]
     print(df.shape)
     #code.interact(local=locals())
 

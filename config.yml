@@ -15,9 +15,9 @@ chrm_split:
 
 
 wandb_project_name: "narval_test_2"
-wandb_run_name: "4"
+wandb_run_name: "5"
 offline_wandb_path: "/home/noxatras/scratch/nutr/wandb"
-output_dir: "/home/noxatras/scratch/nutr/output/test4"
+output_dir: "/home/noxatras/scratch/nutr/output/test5"
 input_sequence_col: "sequence"
 
 #nutr parameters
@@ -26,3 +26,6 @@ gradient_accumulation_steps : 4
 save_strategy : 'epoch'
 evaluation_strategy : 'epoch'
 num_train_epochs : 4
+r : 32
+l_0_w : 0.1
+l_1_w : 1
