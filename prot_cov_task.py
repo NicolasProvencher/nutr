@@ -24,7 +24,7 @@ def parse_arguments():
     # Create an ArgumentParser object
     parser = argparse.ArgumentParser(description='Description of your program.')
 
-    parser.add_argument('--config_file', default='config.yml', help='Path to the config file', type=str)
+    parser.add_argument('--config_file', default='prot_cov_task_config.yml', help='Path to the config file', type=str)
     args, _ = parser.parse_known_args()
 
 
@@ -37,7 +37,7 @@ def parse_arguments():
     #arguments for model loading
     parser.add_argument('--model_directory', help='Path to the directory containing the model files', type=str)
     parser.add_argument('--batch_size', type=int, default=1, help='Batch size')
-    parser.add_argument('--num_labels', type=int, default=2, help='Number of labels for the promoter')
+    parser.add_argument('--num_labels', type=int, default=10, help='Number of labels for the promoter')
 
     #arguments for LoRa
     parser.add_argument('--task_type', default=TaskType.TOKEN_CLS, help='Task type')
@@ -70,8 +70,7 @@ def parse_arguments():
     parser.add_argument('--wandb_project_name', help='Wandb project')
     parser.add_argument('--wandb_run_name', help='Wandb run name')
     parser.add_argument('--predict', action='store_true', help='Predict mode')
-    parser.add_argument('--l_0_w', help='Weight of 0 label in weighted cross entropy')
-    parser.add_argument('--l_1_w', help='Weight of 1 label in weighted cross entropy')
+
     args, _ = parser.parse_known_args()
 
 
@@ -138,11 +137,10 @@ def main():
 
 
                     train, val, test=get_Data(args.input_file, args.separator, args.input_sequence_col, args.label_col, tokenizer, args.chrm_split, split)
-
                     print(f"count train {sum(1 for i in train['input_ids'] if len(i) > 1000)}")
                     print(f"count val {sum(1 for i in val['input_ids'] if len(i) > 1000)}")
                     print(f"count test {sum(1 for i in test['input_ids'] if len(i) > 1000)}")
-                    # print(f"traineq   {train['input_ids'].shape}")
+                    # print(f"trainseq   {train['input_ids'].shape}")
                     # print(f"trainlab   {train['labels'].shape}")
                     # if count > 0:
                     #     code.interact(local=locals())
@@ -164,7 +162,7 @@ def main():
                         save_strategy=args.save_strategy,
                         save_steps=int(steps_per_epoch//4),
                         logging_strategy='steps',
-                        logging_steps= steps_per_epoch//80,
+                        logging_steps= int(steps_per_epoch//80),
                         learning_rate=args.learning_rate,
                         per_device_train_batch_size=args.batch_size,
                         gradient_accumulation_steps= args.gradient_accumulation_steps,
@@ -182,43 +180,14 @@ def main():
 
 
 
-                    l_0_w = args.l_0_w
-                    l_1_w = args.l_1_w
-                    class CustomTrainer(Trainer):
-                        def __init__(self, *args, l_0_w=0.1, l_1_w=1.0, **kwargs):
-                            super().__init__(*args, **kwargs)
-                            self.l_0_w = l_0_w
-                            self.l_1_w = l_1_w
-                        def compute_loss(self, model, inputs, return_outputs=False):
-                            outputs = model(**inputs)
-                            logits = outputs.logits
-                            labels = inputs['labels']
-                            #print(outputs)
-                            # Mask for valid labels (not padding)
-                            valid_mask = labels != -100
-                            # Adjust logits and labels according to the valid mask
-                            valid_logits = logits.view(-1, self.model.config.num_labels)[valid_mask.view(-1)]
-                            valid_labels = labels[valid_mask]
 
-                            # Create a tensor of weights for valid labels
-                            weights = torch.tensor([l_0_w, l_1_w], device=valid_logits.device)
-
-                            # Compute the loss manually for each label and apply weights
-                            loss_fct = torch.nn.CrossEntropyLoss(weight=weights)  # Compute loss without reduction
-                            loss = loss_fct(valid_logits, valid_labels)
-
-                            return (loss, outputs) if return_outputs else loss
-
-
-                    trainer = CustomTrainer(
+                    trainer = Trainer(
                         model=model,
                         args=train_args,
                         train_dataset=train,
                         eval_dataset=val,
                         compute_metrics=compute_metrics,
-
                     )
-
                     trainer.train()
                     
                     model.save_pretrained(out_final_str)

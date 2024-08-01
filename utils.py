@@ -79,9 +79,11 @@ def tokenise_input_seq_and_labels(example, max_length, tokenizer, label_name, se
     new_labels = []
     for i in range(0, len(labels), 6):
         segment = labels[i:i+6]
-        if '1' in segment:
-            new_labels.append(1)
-        else:            new_labels.append(0)
+        # if '1' in segment:
+        #     new_labels.append(1)
+        # else:            
+        #   new_labels.append(0)
+        new_labels.append(int(max(segment)))
     # print(len(labels)/6)
     # print(len(labels) % 6)
     # print(len(new_labels))
