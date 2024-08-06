@@ -5,6 +5,7 @@ import numpy as np
 from datasets import Dataset
 import pandas as pd
 import code
+import ast
 
 
 
@@ -36,42 +37,6 @@ def compute_metrics(eval_pred):
 
 
 
-# def compute_metrics(eval_pred):
-#     """Computes ROC AUC and PR AUC for binary classification"""
-#     predictions, labels = eval_pred.predictions, eval_pred.label_ids
-
-#     mask = labels != -100
-#     predictions = predictions[mask]
-#     labels = labels[mask]
-#     torch_predictions = torch.from_numpy(predictions)
-#     torch_labels = torch.from_numpy(labels)
-
-#     # Compute ROC AUC
-#     roc_auc = AUROC(task='binary')(torch_predictions, torch_labels)
-
-#     # Compute PR AUC
-#     pr_curve = PrecisionRecallCurve(task='binary')
-#     precision, recall, _ = pr_curve(torch_predictions, torch_labels)
-#     pr_auc = auc(recall, precision)
-#         # Compute confusion matrix
-#     tn, fp, fn, tp = confusion_matrix(labels, predictions).ravel()
-#     sk_predictions = np.argmax(predictions, axis=-1).flatten()
-#     sk_references = labels.flatten()
-#     sk_precision, sk_recall, _ = precision_recall_curve(sk_references, sk_predictions)
-#     sk_auc_score = auc(sk_recall, sk_precision)
-#     # print(f'prediction 2 {predictions}')    # Compute FNR and FPR
-
-
-#     return {
-#         'roc_auc': roc_auc.item(),
-#         'pr_auc': pr_auc.item(),
-#         'tn': tn,
-#         'fp': fp,
-#         'fn': fn,
-#         'tp': tp,
-#         'sk_rocauc': roc_auc_score(sk_references, sk_predictions),
-#         'sk_pr_auc': sk_auc_score
-#     }
 
 def tokenise_input_seq_and_labels(example, max_length, tokenizer, label_name, sequence_name):
     
@@ -84,17 +49,11 @@ def tokenise_input_seq_and_labels(example, max_length, tokenizer, label_name, se
         # else:            
         #   new_labels.append(0)
         new_labels.append(int(max(segment)))
-    # print(len(labels)/6)
-    # print(len(labels) % 6)
-    # print(len(new_labels))
+
     if ((len(labels) % 6)) >1:
         segment = labels[-(len(labels) % 6)+1:]
         # print(f'segment {len(segment)}')
-        for i in segment:
-            if i==1:
-                new_labels.append(1)
-            else:
-                new_labels.append(0)
+        new_labels.append(i)
 
     #add a -100 to ignore the <cls> token
     new_labels.insert(0, -100)
@@ -136,11 +95,15 @@ def get_Data(csv_path, separator, input_sequence_col, label_col, tokenizer, chrm
     }
 
     for name, dataset in datasets.items():
+        dataset[label_col] = dataset[label_col].apply(lambda x: np.array(ast.literal_eval(x)))
         datasets[name] = dataset.map(tokenise_input_seq_and_labels, fn_kwargs={"label_name": label_col, "sequence_name": input_sequence_col, "max_length": max_length, "tokenizer": tokenizer})
         datasets[name] = datasets[name].remove_columns([ '__index_level_0__'])
-        if name != 'test':
-            datasets[name] = datasets[name].remove_columns(['transcript_name',input_sequence_col,'chrm','token'])
-
+        # if name != 'test':
+        #     datasets[name] = datasets[name].remove_columns(['transcript_name',input_sequence_col,'chrm','token'])
+    a=[i for i in datasets['train'] if len(i['labels'])>1000]
+    b=[i for i in datasets['val'] if len(i['labels'])>1000]
+    c=[i for i in datasets['test'] if len(i['labels'])>1000]
+    code.interact(local=locals())
     return datasets['train'], datasets['val'], datasets['test']
 
 

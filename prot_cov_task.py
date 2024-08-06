@@ -94,7 +94,7 @@ def main():
 
 
     args = parse_arguments()
-    device = torch.device("cuda")
+    #device = torch.device("cuda")
     for split in range(1, 2):
             out_str=f"{args.output_dir}-split{split}"
             out_final_str=f"{args.output_dir}-split{split}-final"
@@ -109,22 +109,22 @@ def main():
             else: #this runs when the run and fold dont exists
                 try:#this is so i can end every wandb run
                     wandb.init(mode='offline', project=args.wandb_project_name, name=out_str, dir=args.offline_wandb_path)
-                    #load model and load modification
-                    model1 = AutoModelForTokenClassification.from_pretrained(args.model_directory, num_labels=args.num_labels, trust_remote_code=True, output_attentions=False)
-                    peft_config = LoraConfig(
-                            task_type=args.task_type, 
-                            inference_mode=args.inference_mode, 
-                            r=args.r, lora_alpha= args.lora_alpha, 
-                            lora_dropout=args.lora_dropout, 
-                            target_modules=args.target_modules,
-                            )
+                    # #load model and load modification
+                    # model1 = AutoModelForTokenClassification.from_pretrained(args.model_directory, num_labels=args.num_labels, trust_remote_code=True, output_attentions=False)
+                    # peft_config = LoraConfig(
+                    #         task_type=args.task_type, 
+                    #         inference_mode=args.inference_mode, 
+                    #         r=args.r, lora_alpha= args.lora_alpha, 
+                    #         lora_dropout=args.lora_dropout, 
+                    #         target_modules=args.target_modules,
+                    #         )
                     
-                    model = get_peft_model(model1, peft_config) # transform our classifier into a peft model
-                    model.print_trainable_parameters()
-                    model.to(device)
-                    #make data and tokenize it
+                    # model = get_peft_model(model1, peft_config) # transform our classifier into a peft model
+                    # model.print_trainable_parameters()
+                    # model.to(device)
+                    # #make data and tokenize it
 
-                    print("Max Position Embeddings:", model.config.max_position_embeddings)
+                    # print("Max Position Embeddings:", model.config.max_position_embeddings)
 
 
 
@@ -143,7 +143,7 @@ def main():
                     # print(f"trainseq   {train['input_ids'].shape}")
                     # print(f"trainlab   {train['labels'].shape}")
                     # if count > 0:
-                    #     code.interact(local=locals())
+                    code.interact(local=locals())
                     # print(len(train['input_ids']))
                     # print(len(val['input_ids']))
                     # print(len(test['input_ids']))
