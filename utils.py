@@ -87,23 +87,24 @@ def get_Data(csv_path, separator, input_sequence_col, label_col, tokenizer, chrm
     # chrm_split dict should be in the form:
     # chrm_split={<split1>:{'train':[],'val':[],'test':[]},<split2>:{'train':[],'val':[],'test':[]}, ... }
 
+    #train=df.loc[df['chrm'].isin(chrm_split[split]['train'])][:500]
+
 
     datasets = {
-        'train': Dataset.from_pandas(df.loc[df['chrm'].isin(chrm_split[split]['train'])]),
-        'val': Dataset.from_pandas(df.loc[df['chrm'].isin(chrm_split[split]['val'])]),
-        'test': Dataset.from_pandas(df.loc[df['chrm'].isin(chrm_split[split]['test'])])
+        'train': Dataset.from_pandas(df.loc[df['chrm'].isin(chrm_split[split]['train'])][:500].assign(labels=lambda x: x['labels'].apply(ast.literal_eval))),
+        'val': Dataset.from_pandas(df.loc[df['chrm'].isin(chrm_split[split]['val'])][:500].assign(labels=lambda x: x['labels'].apply(ast.literal_eval))),
+        'test': Dataset.from_pandas(df.loc[df['chrm'].isin(chrm_split[split]['test'])][:500].assign(labels=lambda x: x['labels'].apply(ast.literal_eval)))
     }
 
     for name, dataset in datasets.items():
-        dataset[label_col] = dataset[label_col].apply(lambda x: np.array(ast.literal_eval(x)))
         datasets[name] = dataset.map(tokenise_input_seq_and_labels, fn_kwargs={"label_name": label_col, "sequence_name": input_sequence_col, "max_length": max_length, "tokenizer": tokenizer})
         datasets[name] = datasets[name].remove_columns([ '__index_level_0__'])
         # if name != 'test':
         #     datasets[name] = datasets[name].remove_columns(['transcript_name',input_sequence_col,'chrm','token'])
-    a=[i for i in datasets['train'] if len(i['labels'])>1000]
-    b=[i for i in datasets['val'] if len(i['labels'])>1000]
-    c=[i for i in datasets['test'] if len(i['labels'])>1000]
-    code.interact(local=locals())
+    # a=[i for i in datasets['train'] if len(i['labels'])>1000]
+    # b=[i for i in datasets['val'] if len(i['labels'])>1000]
+    # c=[i for i in datasets['test'] if len(i['labels'])>1000]
+    #code.interact(local=locals())
     return datasets['train'], datasets['val'], datasets['test']
 
 
