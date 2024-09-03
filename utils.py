@@ -1,4 +1,4 @@
-from sklearn.metrics import matthews_corrcoef, roc_auc_score, precision_recall_curve, auc, confusion_matrix
+from sklearn.metrics import matthews_corrcoef, roc_auc_score, precision_recall_curve, auc, confusion_matrix, precision_score
 import torch.nn.functional as F
 import torch
 import numpy as np
@@ -19,16 +19,18 @@ def compute_metrics(eval_pred):
     references = references[mask]
     predictions = np.argmax(predictions, axis=-1).flatten()
     references = references.flatten()
-    precision, recall, _ = precision_recall_curve(references, predictions)
-    auc_score = auc(recall, precision)
-    tn, fp, fn, tp = confusion_matrix(references, predictions).ravel()
+    #precision, recall, _ = precision_recall_curve(references, predictions)
+    #auc_score = auc(recall, precision)
+    #tn, fp, fn, tp = confusion_matrix(references, predictions).ravel()
     # print(f'prediction 2 {predictions}')    # Compute FNR and FPR
-    r = {'rocauc': roc_auc_score(references, predictions),
-        'pr_auc': auc_score,
-        'tn': tn,
-        'fp': fp,
-        'fn': fn,
-        'tp': tp,
+    r = {#'rocauc': roc_auc_score(references, predictions),
+        #'pr_auc': auc_score,
+        #'pr_auc': precision_score(references, predictions, average=None)
+        #'tn': tn,
+        #'fp': fp,
+        #'fn': fn,
+        #'tp': tp,
+        'tp': 0
 
         }
     print(r)
@@ -52,8 +54,8 @@ def tokenise_input_seq_and_labels(example, max_length, tokenizer, label_name, se
 
     if ((len(labels) % 6)) >1:
         segment = labels[-(len(labels) % 6)+1:]
-        # print(f'segment {len(segment)}')
-        new_labels.append(i)
+        for j in segment:
+            new_labels.append(j)
 
     #add a -100 to ignore the <cls> token
     new_labels.insert(0, -100)
@@ -99,12 +101,11 @@ def get_Data(csv_path, separator, input_sequence_col, label_col, tokenizer, chrm
     for name, dataset in datasets.items():
         datasets[name] = dataset.map(tokenise_input_seq_and_labels, fn_kwargs={"label_name": label_col, "sequence_name": input_sequence_col, "max_length": max_length, "tokenizer": tokenizer})
         datasets[name] = datasets[name].remove_columns([ '__index_level_0__'])
-        # if name != 'test':
-        #     datasets[name] = datasets[name].remove_columns(['transcript_name',input_sequence_col,'chrm','token'])
+        if name != 'test':
+            datasets[name] = datasets[name].remove_columns(['transcript_name',input_sequence_col,'chrm','token'])
     # a=[i for i in datasets['train'] if len(i['labels'])>1000]
     # b=[i for i in datasets['val'] if len(i['labels'])>1000]
     # c=[i for i in datasets['test'] if len(i['labels'])>1000]
-    #code.interact(local=locals())
     return datasets['train'], datasets['val'], datasets['test']
 
 

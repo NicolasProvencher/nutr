@@ -37,7 +37,7 @@ def parse_arguments():
     #arguments for model loading
     parser.add_argument('--model_directory', help='Path to the directory containing the model files', type=str)
     parser.add_argument('--batch_size', type=int, default=1, help='Batch size')
-    parser.add_argument('--num_labels', type=int, default=10, help='Number of labels for the promoter')
+    parser.add_argument('--num_labels', type=int, default=14, help='Number of labels for the promoter')
 
     #arguments for LoRa
     parser.add_argument('--task_type', default=TaskType.TOKEN_CLS, help='Task type')
@@ -147,8 +147,7 @@ def main():
                     # print(len(train['input_ids']))
                     # print(len(val['input_ids']))
                     # print(len(test['input_ids']))
-
-
+                    print(max([max(i) for i in train['labels']]))
                     #decide step and save strategy
                     steps_per_epoch = len(train) // (args.batch_size * args.gradient_accumulation_steps)
                     # save_eval_freq = steps_per_epoch // 2
@@ -162,7 +161,7 @@ def main():
                         save_strategy=args.save_strategy,
                         save_steps=int(steps_per_epoch//4),
                         logging_strategy='steps',
-                        logging_steps= int(steps_per_epoch//80),
+                        logging_steps= int(steps_per_epoch//4),
                         learning_rate=args.learning_rate,
                         per_device_train_batch_size=args.batch_size,
                         gradient_accumulation_steps= args.gradient_accumulation_steps,
@@ -194,29 +193,31 @@ def main():
                     # predictions, labels, metrics = trainer.predict(test.remove_columns(['transcript_name', args.input_sequence_col,'chrm','token']))
                     train_args.dataloader_drop_last = False
                     output = trainer.predict(test.remove_columns(['transcript_name', args.input_sequence_col,'chrm','token']))
-                    # mask=output.label_ids!=-100
+                    mask=output.label_ids!=-100
+
+
+
+                    am_pred=np.argmax(output.predictions,axis=2)
+                    filtered_pred = [subarray[mask[i]].tolist() for i, subarray in enumerate(am_pred)]
+                    filtered_labels = [subarray[mask[i]].tolist() for i, subarray in enumerate(output.label_ids)]
+                    #filtered_metrics = compute_metrics(filtered_pred, filtered_labels)
+
+                    # np.save('preditcions.npy', predictions)
+                    # np.save('pred_labels.npy', labels)
+                    # np.save('pred_in.npy', test['input_ids'])
+                    # np.save('pred_inlabels.npy', test['labels'])
+
+                    output_dict={'t_name':test['transcript_name'],
+                                'input_ids':test['input_ids'],
+                                'translate_input': tokenizer.batch_decode(test['input_ids'],skip_special_tokens=True),
+                                'token':test['token'],
+                                'labels':test['labels'],
+                                'predictions':filtered_pred,
+                                'true_labels':filtered_labels,
+                                'sequence':test[args.input_sequence_col]}
+                    output_df = pd.DataFrame(output_dict)
+                    output_df.to_csv(f"{out_str}/output.csv", index=False)
                     code.interact(local=locals())
-
-
-                    # am_pred=np.argmax(output.predictions,axis=2)
-                    # filtered_pred = [subarray[mask[i]].tolist() for i, subarray in enumerate(am_pred)]
-                    # filtered_labels = [subarray[mask[i]].tolist() for i, subarray in enumerate(output.label_ids)]
-                    # #filtered_metrics = compute_metrics(filtered_pred, filtered_labels)
-
-                    # # np.save('preditcions.npy', predictions)
-                    # # np.save('pred_labels.npy', labels)
-                    # # np.save('pred_in.npy', test['input_ids'])
-                    # # np.save('pred_inlabels.npy', test['labels'])
-
-                    # output_dict={'t_name':test['transcript_name'],
-                    #             'input_ids':test['input_ids'],
-                    #             'token':test['token'],
-                    #             'labels':test['labels'],
-                    #             'predictions':filtered_pred,
-                    #             'true_labels':filtered_labels,
-                    #             'sequence':test[args.input_sequence_col]}
-                    # output_df = pd.DataFrame(output_dict)
-                    # output_df.to_csv(f"{out_str}/output.csv", index=False)
 
                     test_metrics = {f"test/{k}": v for k, v in output.metrics.items()}
                     wandb.log(test_metrics)

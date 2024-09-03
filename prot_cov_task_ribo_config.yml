@@ -17,7 +17,7 @@ chrm_split:
 wandb_project_name: "narval_test_2"
 wandb_run_name: "prot_ribo_1"
 offline_wandb_path: "/home/noxatras/scratch/nutr/wandb"
-output_dir: "/home/noxatras/scratch/nutr/output/prot_ribo_salloc2"
+output_dir: "/home/noxatras/scratch/nutr/output/prot_ribo_salloc3"
 input_sequence_col: "sequence"
 
 #nutr parameters
