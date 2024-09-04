@@ -13,6 +13,7 @@ import pandas as pd
 import code
 ###imports
 from utils import tokenise_input_seq_and_labels, get_Data, compute_metrics
+from output_processing import PredictionProcessor
 
 def load_config(config_file):
     # Load arguments from a YAML file
@@ -190,7 +191,6 @@ def main():
                     trainer.train()
                     
                     model.save_pretrained(out_final_str)
-                    # predictions, labels, metrics = trainer.predict(test.remove_columns(['transcript_name', args.input_sequence_col,'chrm','token']))
                     train_args.dataloader_drop_last = False
                     output = trainer.predict(test.remove_columns(['transcript_name', args.input_sequence_col,'chrm','token']))
                     mask=output.label_ids!=-100
@@ -217,9 +217,13 @@ def main():
                                 'sequence':test[args.input_sequence_col]}
                     output_df = pd.DataFrame(output_dict)
                     output_df.to_csv(f"{out_str}/output.csv", index=False)
-                    code.interact(local=locals())
 
+                    
+                    predictionprocessor=PredictionProcessor(f"{out_str}/output.csv", args.pkl_path)
+                    predictionprocessor.retrieve_orf_data_cov()
                     test_metrics = {f"test/{k}": v for k, v in output.metrics.items()}
+
+                    
                     wandb.log(test_metrics)
                 except Exception as e:
                     print(e)
