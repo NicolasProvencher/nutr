@@ -24,7 +24,7 @@ def parse_arguments():
     # Create an ArgumentParser object
     parser = argparse.ArgumentParser(description='Description of your program.')
 
-    parser.add_argument('--config_file', default='config.yml', help='Path to the config file', type=str)
+    parser.add_argument('--config_file', default='prot_cov_task_config.yml', help='Path to the config file', type=str)
     args, _ = parser.parse_known_args()
 
 
@@ -37,7 +37,7 @@ def parse_arguments():
     #arguments for model loading
     parser.add_argument('--model_directory', help='Path to the directory containing the model files', type=str)
     parser.add_argument('--batch_size', type=int, default=1, help='Batch size')
-    parser.add_argument('--num_labels', type=int, default=2, help='Number of labels for the promoter')
+    parser.add_argument('--num_labels', type=int, default=14, help='Number of labels for the promoter')
 
     #arguments for LoRa
     parser.add_argument('--task_type', default=TaskType.TOKEN_CLS, help='Task type')
@@ -70,8 +70,7 @@ def parse_arguments():
     parser.add_argument('--wandb_project_name', help='Wandb project')
     parser.add_argument('--wandb_run_name', help='Wandb run name')
     parser.add_argument('--predict', action='store_true', help='Predict mode')
-    parser.add_argument('--l_0_w', help='Weight of 0 label in weighted cross entropy')
-    parser.add_argument('--l_1_w', help='Weight of 1 label in weighted cross entropy')
+
     args, _ = parser.parse_known_args()
 
 
@@ -110,7 +109,7 @@ def main():
             else: #this runs when the run and fold dont exists
                 try:#this is so i can end every wandb run
                     wandb.init(mode='offline', project=args.wandb_project_name, name=out_str, dir=args.offline_wandb_path)
-                    #load model and load modification
+                    # #load model and load modification
                     model1 = AutoModelForTokenClassification.from_pretrained(args.model_directory, num_labels=args.num_labels, trust_remote_code=True, output_attentions=False)
                     peft_config = LoraConfig(
                             task_type=args.task_type, 
@@ -138,19 +137,17 @@ def main():
 
 
                     train, val, test=get_Data(args.input_file, args.separator, args.input_sequence_col, args.label_col, tokenizer, args.chrm_split, split)
-
-                    print(f"count train {sum(1 for i in train['input_ids'] if len(i) > 1000)}")
-                    print(f"count val {sum(1 for i in val['input_ids'] if len(i) > 1000)}")
-                    print(f"count test {sum(1 for i in test['input_ids'] if len(i) > 1000)}")
-                    # print(f"traineq   {train['input_ids'].shape}")
+                    # print(f"count train {sum(1 for i in train['input_ids'] if len(i) > 1000)}")
+                    # print(f"count val {sum(1 for i in val['input_ids'] if len(i) > 1000)}")
+                    # print(f"count test {sum(1 for i in test['input_ids'] if len(i) > 1000)}")
+                    # print(f"trainseq   {train['input_ids'].shape}")
                     # print(f"trainlab   {train['labels'].shape}")
                     # if count > 0:
-                    #     code.interact(local=locals())
+                    #code.interact(local=locals())
                     # print(len(train['input_ids']))
                     # print(len(val['input_ids']))
                     # print(len(test['input_ids']))
-
-
+                    print(max([max(i) for i in train['labels']]))
                     #decide step and save strategy
                     steps_per_epoch = len(train) // (args.batch_size * args.gradient_accumulation_steps)
                     # save_eval_freq = steps_per_epoch // 2
@@ -164,7 +161,7 @@ def main():
                         save_strategy=args.save_strategy,
                         save_steps=int(steps_per_epoch//4),
                         logging_strategy='steps',
-                        logging_steps= steps_per_epoch//80,
+                        logging_steps= int(steps_per_epoch//4),
                         learning_rate=args.learning_rate,
                         per_device_train_batch_size=args.batch_size,
                         gradient_accumulation_steps= args.gradient_accumulation_steps,
@@ -182,72 +179,45 @@ def main():
 
 
 
-                    l_0_w = args.l_0_w
-                    l_1_w = args.l_1_w
-                    class CustomTrainer(Trainer):
-                        def __init__(self, *args, l_0_w=0.1, l_1_w=1.0, **kwargs):
-                            super().__init__(*args, **kwargs)
-                            self.l_0_w = l_0_w
-                            self.l_1_w = l_1_w
-                        def compute_loss(self, model, inputs, return_outputs=False):
-                            outputs = model(**inputs)
-                            logits = outputs.logits
-                            labels = inputs['labels']
-                            #print(outputs)
-                            # Mask for valid labels (not padding)
-                            valid_mask = labels != -100
-                            # Adjust logits and labels according to the valid mask
-                            valid_logits = logits.view(-1, self.model.config.num_labels)[valid_mask.view(-1)]
-                            valid_labels = labels[valid_mask]
 
-                            # Create a tensor of weights for valid labels
-                            weights = torch.tensor([l_0_w, l_1_w], device=valid_logits.device)
-
-                            # Compute the loss manually for each label and apply weights
-                            loss_fct = torch.nn.CrossEntropyLoss(weight=weights)  # Compute loss without reduction
-                            loss = loss_fct(valid_logits, valid_labels)
-
-                            return (loss, outputs) if return_outputs else loss
-
-
-                    trainer = CustomTrainer(
+                    trainer = Trainer(
                         model=model,
                         args=train_args,
                         train_dataset=train,
                         eval_dataset=val,
                         compute_metrics=compute_metrics,
-
                     )
-
                     trainer.train()
                     
                     model.save_pretrained(out_final_str)
                     # predictions, labels, metrics = trainer.predict(test.remove_columns(['transcript_name', args.input_sequence_col,'chrm','token']))
                     train_args.dataloader_drop_last = False
                     output = trainer.predict(test.remove_columns(['transcript_name', args.input_sequence_col,'chrm','token']))
-                    # mask=output.label_ids!=-100
-                    #code.interact(local=locals())
+                    mask=output.label_ids!=-100
 
 
-                    # am_pred=np.argmax(output.predictions,axis=2)
-                    # filtered_pred = [subarray[mask[i]].tolist() for i, subarray in enumerate(am_pred)]
-                    # filtered_labels = [subarray[mask[i]].tolist() for i, subarray in enumerate(output.label_ids)]
-                    # #filtered_metrics = compute_metrics(filtered_pred, filtered_labels)
 
-                    # # np.save('preditcions.npy', predictions)
-                    # # np.save('pred_labels.npy', labels)
-                    # # np.save('pred_in.npy', test['input_ids'])
-                    # # np.save('pred_inlabels.npy', test['labels'])
+                    am_pred=np.argmax(output.predictions,axis=2)
+                    filtered_pred = [subarray[mask[i]].tolist() for i, subarray in enumerate(am_pred)]
+                    filtered_labels = [subarray[mask[i]].tolist() for i, subarray in enumerate(output.label_ids)]
+                    #filtered_metrics = compute_metrics(filtered_pred, filtered_labels)
 
-                    # output_dict={'t_name':test['transcript_name'],
-                    #             'input_ids':test['input_ids'],
-                    #             'token':test['token'],
-                    #             'labels':test['labels'],
-                    #             'predictions':filtered_pred,
-                    #             'true_labels':filtered_labels,
-                    #             'sequence':test[args.input_sequence_col]}
-                    # output_df = pd.DataFrame(output_dict)
-                    # output_df.to_csv(f"{out_str}/output.csv", index=False)
+                    # np.save('preditcions.npy', predictions)
+                    # np.save('pred_labels.npy', labels)
+                    # np.save('pred_in.npy', test['input_ids'])
+                    # np.save('pred_inlabels.npy', test['labels'])
+
+                    output_dict={'t_name':test['transcript_name'],
+                                'input_ids':test['input_ids'],
+                                'translate_input': tokenizer.batch_decode(test['input_ids'],skip_special_tokens=True),
+                                'token':test['token'],
+                                'labels':test['labels'],
+                                'predictions':filtered_pred,
+                                'true_labels':filtered_labels,
+                                'sequence':test[args.input_sequence_col]}
+                    output_df = pd.DataFrame(output_dict)
+                    output_df.to_csv(f"{out_str}/output.csv", index=False)
+                    code.interact(local=locals())
 
                     test_metrics = {f"test/{k}": v for k, v in output.metrics.items()}
                     wandb.log(test_metrics)
