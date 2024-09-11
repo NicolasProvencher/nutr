@@ -70,8 +70,8 @@ def parse_arguments():
     parser.add_argument('--wandb_project_name', help='Wandb project')
     parser.add_argument('--wandb_run_name', help='Wandb run name')
     parser.add_argument('--predict', action='store_true', help='Predict mode')
-    parser.add_argument('--l_0_w', help='Weight of 0 label in weighted cross entropy')
-    parser.add_argument('--l_1_w', help='Weight of 1 label in weighted cross entropy')
+    parser.add_argument('--l_0_w', default=0.1, help='Weight of 0 label in weighted cross entropy')
+    parser.add_argument('--l_1_w', default=1, help='Weight of 1 label in weighted cross entropy')
     args, _ = parser.parse_known_args()
 
 
@@ -83,7 +83,6 @@ def parse_arguments():
     args.chrm_split = config['chrm_split']
 
     return args
-
 
 def main():
     # Parse the command-line arguments
@@ -126,10 +125,6 @@ def main():
                     #make data and tokenize it
 
                     print("Max Position Embeddings:", model.config.max_position_embeddings)
-
-
-
-
                     tokenizer = AutoTokenizer.from_pretrained(args.model_directory,trust_remote_code=True)
 
 
@@ -162,9 +157,9 @@ def main():
                         evaluation_strategy=args.evaluation_strategy,
                         eval_steps=int(steps_per_epoch//4),
                         save_strategy=args.save_strategy,
-                        save_steps=int(steps_per_epoch//4),
+                        #save_steps=int(steps_per_epoch//4),
                         logging_strategy='steps',
-                        logging_steps= steps_per_epoch//80,
+                        logging_steps= int(steps_per_epoch//4),
                         learning_rate=args.learning_rate,
                         per_device_train_batch_size=args.batch_size,
                         gradient_accumulation_steps= args.gradient_accumulation_steps,
@@ -184,6 +179,7 @@ def main():
 
                     l_0_w = args.l_0_w
                     l_1_w = args.l_1_w
+                    print(f"l_0_w: {l_0_w}, l_1_w: {l_1_w}")
                     class CustomTrainer(Trainer):
                         def __init__(self, *args, l_0_w=0.1, l_1_w=1.0, **kwargs):
                             super().__init__(*args, **kwargs)
@@ -201,7 +197,7 @@ def main():
                             valid_labels = labels[valid_mask]
 
                             # Create a tensor of weights for valid labels
-                            weights = torch.tensor([l_0_w, l_1_w], device=valid_logits.device)
+                            weights = torch.tensor([self.l_0_w, self.l_1_w], device=valid_logits.device)
 
                             # Compute the loss manually for each label and apply weights
                             loss_fct = torch.nn.CrossEntropyLoss(weight=weights)  # Compute loss without reduction
@@ -221,33 +217,31 @@ def main():
 
                     trainer.train()
                     
-                    model.save_pretrained(out_final_str)
-                    # predictions, labels, metrics = trainer.predict(test.remove_columns(['transcript_name', args.input_sequence_col,'chrm','token']))
+                    #model.save_pretrained(out_final_str)
                     train_args.dataloader_drop_last = False
                     output = trainer.predict(test.remove_columns(['transcript_name', args.input_sequence_col,'chrm','token']))
-                    # mask=output.label_ids!=-100
-                    #code.interact(local=locals())
+                    mask=output.label_ids!=-100
 
 
-                    # am_pred=np.argmax(output.predictions,axis=2)
-                    # filtered_pred = [subarray[mask[i]].tolist() for i, subarray in enumerate(am_pred)]
-                    # filtered_labels = [subarray[mask[i]].tolist() for i, subarray in enumerate(output.label_ids)]
-                    # #filtered_metrics = compute_metrics(filtered_pred, filtered_labels)
+                    am_pred=np.argmax(output.predictions,axis=2)
+                    filtered_pred = [subarray[mask[i]].tolist() for i, subarray in enumerate(am_pred)]
+                    filtered_labels = [subarray[mask[i]].tolist() for i, subarray in enumerate(output.label_ids)]
+                    #filtered_metrics = compute_metrics(filtered_pred, filtered_labels)
 
                     # # np.save('preditcions.npy', predictions)
                     # # np.save('pred_labels.npy', labels)
                     # # np.save('pred_in.npy', test['input_ids'])
                     # # np.save('pred_inlabels.npy', test['labels'])
 
-                    # output_dict={'t_name':test['transcript_name'],
-                    #             'input_ids':test['input_ids'],
-                    #             'token':test['token'],
-                    #             'labels':test['labels'],
-                    #             'predictions':filtered_pred,
-                    #             'true_labels':filtered_labels,
-                    #             'sequence':test[args.input_sequence_col]}
-                    # output_df = pd.DataFrame(output_dict)
-                    # output_df.to_csv(f"{out_str}/output.csv", index=False)
+                    output_dict={'t_name':test['transcript_name'],
+                                'input_ids':test['input_ids'],
+                                'token':test['token'],
+                                'labels':test['labels'],
+                                'predictions':filtered_pred,
+                                'true_labels':filtered_labels,
+                                'sequence':test[args.input_sequence_col]}
+                    output_df = pd.DataFrame(output_dict)
+                    output_df.to_csv(f"{out_str}/output.csv", index=False)
 
                     test_metrics = {f"test/{k}": v for k, v in output.metrics.items()}
                     wandb.log(test_metrics)

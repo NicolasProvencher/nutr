@@ -1,41 +1,224 @@
-from sklearn.metrics import matthews_corrcoef, roc_auc_score, precision_recall_curve, auc, confusion_matrix, precision_score
+from sklearn.metrics import matthews_corrcoef, f1_score, accuracy_score, confusion_matrix, precision_score, recall_score, average_precision_score, precision_recall_curve, PrecisionRecallDisplay, roc_curve, auc 
 import torch.nn.functional as F
 import torch
 import numpy as np
+import wandb
 from datasets import Dataset
+from scipy.special import softmax
 import pandas as pd
 import code
 import ast
+import pickle
+import matplotlib.pyplot as plt
+from sklearn.preprocessing import label_binarize
+import matplotlib.pyplot as plt
+import io
+from PIL import Image
+import PIL.ImageOps
+import seaborn as sns
 
 
 
+def plot_roc(predictions_prob, references, n_classes):
 
+    # Binarize the output
+    if n_classes == 2:
+        predictions_prob = predictions_prob[:, 1]
+        fpr, tpr, _ = roc_curve(references, predictions_prob)
+        roc_auc = auc(fpr, tpr)
+        plt.plot(fpr, tpr, label=f'ROC curve (area = {roc_auc:0.2f})')
+    else:
+        references = label_binarize(references, classes=range(n_classes))
+        fpr = dict()
+        tpr = dict()
+        roc_auc = dict()
+        for i in range(n_classes):
+            fpr[i], tpr[i], _ = roc_curve(references[:, i], predictions_prob[:, i])
+            roc_auc[i] = auc(fpr[i], tpr[i])
+        for i in range(n_classes):
+            plt.plot(fpr[i], tpr[i],
+                    label='ROC curve of class {0} (area = {1:0.2f})'
+                    ''.format(i, roc_auc[i]))
+
+    plt.plot([0, 1], [0, 1], 'k--')
+    plt.xlim([-0.05, 1.0])
+    plt.ylim([0.0, 1.05])
+    plt.xlabel('False Positive Rate')
+    plt.ylabel('True Positive Rate')
+    plt.title('Receiver operating characteristic for multi-class data')
+    plt.legend(loc="lower right")
+    buf=io.BytesIO()
+    plt.savefig(buf, format='png')
+    buf.seek(0)
+    plt.close()
+    if n_classes == 2:
+        return roc_auc, buf
+    else:
+        return np.nanmean([x for x in roc_auc.values()]), buf
+
+def plot_pr(predictions_prob, references, n_classes):
+    if n_classes == 2:
+        predictions_prob = predictions_prob[:, 1]
+        precision, recall, _ = precision_recall_curve(references, predictions_prob)
+        average_precision = average_precision_score(references, predictions_prob)
+
+        # Plot the PR curve
+        plt.plot(recall, precision, label=f'PR curve (area = {average_precision:0.2f})')
+    else:
+        references = label_binarize(references, classes=range(n_classes))
+        precision = dict()
+        recall = dict()
+        average_precision = dict()
+        for i in range(n_classes):
+            precision[i], recall[i], _ = precision_recall_curve(references[:, i], predictions_prob[:, i])
+            average_precision[i] = average_precision_score(references[:, i], predictions_prob[:, i])
+
+        # A "micro-average": quantifying score on all classes jointly
+        precision["micro"], recall["micro"], _ = precision_recall_curve(
+            references.ravel(), predictions_prob.ravel()
+        )
+        average_precision["micro"] = average_precision_score(references, predictions_prob, average="micro")
+        # setup plot details
+
+        _, ax = plt.subplots(figsize=(7, 8))
+
+        f_scores = np.linspace(0.2, 0.8, num=4)
+        lines, labels = [], []
+        for f_score in f_scores:
+            x = np.linspace(0.01, 1)
+            y = f_score * x / (2 * x - f_score)
+            (l,) = plt.plot(x[y >= 0], y[y >= 0], color="gray", alpha=0.2)
+            plt.annotate("f1={0:0.1f}".format(f_score), xy=(0.9, y[45] + 0.02))
+
+        display = PrecisionRecallDisplay(
+            recall=recall["micro"],
+            precision=precision["micro"],
+            average_precision=average_precision["micro"],
+        )
+        display.plot(ax=ax, name="Micro-average precision-recall", color="gold")
+
+        for i in range(n_classes):
+            display = PrecisionRecallDisplay(
+                recall=recall[i],
+                precision=precision[i],
+                average_precision=average_precision[i],
+            )
+            display.plot(ax=ax, name=f"Precision-recall for class {i}")
+
+        # add the legend for the iso-f1 curves
+        handles, labels = display.ax_.get_legend_handles_labels()
+        handles.extend([l])
+        labels.extend(["iso-f1 curves"])
+        # set the legend and the axes
+        ax.legend(handles=handles, labels=labels, loc="best")
+        ax.set_title("Extension of Precision-Recall curve to multi-class")
+    buf1 = io.BytesIO()
+    plt.savefig(buf1, format='png')
+    buf1.seek(0)
+    plt.close()
+    if n_classes == 2:
+        return average_precision, buf1
+    else:
+        return np.mean([i for i in average_precision.values() if i!=-0.00]), buf1
+
+def plot_confusion_matrix(references, predictions_hard, class_names):
+    cm = confusion_matrix(references, predictions_hard)
+    plt.figure(figsize=(10, 7))
+    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', xticklabels=class_names, yticklabels=class_names)
+    plt.xlabel('Predicted')
+    plt.ylabel('Actual')
+    plt.title('Confusion Matrix')
+
+    # Convert plot to NumPy array
+    fig = plt.gcf()
+    fig.canvas.draw()
+    cm_image = np.frombuffer(fig.canvas.tostring_rgb(), dtype=np.uint8)
+    cm_image = cm_image.reshape(fig.canvas.get_width_height()[::-1] + (3,))
+    plt.close()
+
+    return cm_image
 
 def compute_metrics(eval_pred):
-    """Computes F1 score for binary classification"""
+    """Computes metrics for multiclass classification"""
     predictions, references = eval_pred.predictions, eval_pred.label_ids
     mask = references != -100
     predictions = predictions[mask]
     references = references[mask]
-    predictions = np.argmax(predictions, axis=-1).flatten()
-    references = references.flatten()
-    #precision, recall, _ = precision_recall_curve(references, predictions)
-    #auc_score = auc(recall, precision)
-    #tn, fp, fn, tp = confusion_matrix(references, predictions).ravel()
-    # print(f'prediction 2 {predictions}')    # Compute FNR and FPR
-    r = {#'rocauc': roc_auc_score(references, predictions),
-        #'pr_auc': auc_score,
-        #'pr_auc': precision_score(references, predictions, average=None)
-        #'tn': tn,
-        #'fp': fp,
-        #'fn': fn,
-        #'tp': tp,
-        'tp': 0
+    predictions_prob = softmax(predictions, axis=-1)
+    predictions_hard = np.argmax(predictions, axis=-1)
 
-        }
-    print(r)
+    #metric calculation
+    #prob
+    roc_auc, buf = plot_roc(predictions_prob, references, 2)
+    pr_auc, buf1 = plot_pr(predictions_prob, references, 2)
+    roc_image = np.array(Image.open(buf))
+    pr_image = np.array(Image.open(buf1))
+    cm_image = plot_confusion_matrix(references, predictions_hard, class_names=[str(i) for i in range(2)])
+    #hard
+    tn, fp, fn, tp = confusion_matrix(references, predictions_hard).ravel()
+    print(confusion_matrix(references, predictions_hard).ravel())
+    # Prepare results dictionary
+    r = {
+        'rocauc': roc_auc,
+        'roc_curve': wandb.Image(roc_image),
+        'pr_auc': pr_auc,
+        'pr_curve': wandb.Image(pr_image),
+        'confusion_matrix': wandb.Image(cm_image),
+        'tn': tn,
+        'fp': fp,
+        'fn': fn,
+        'tp': tp,
+        'mcc': matthews_corrcoef(references, predictions_hard),
+        'accuracy': accuracy_score(references, predictions_hard),
+        'f1': f1_score(references, predictions_hard),
+        'precision': precision_score(references, predictions_hard),
+        'recall': recall_score(references, predictions_hard),
+        'tpr': tp/(tp+fn) ,
+        'fpr': fp/(fp+tn)
+    }
+
     return r
 
+def compute_metrics_cov(eval_pred):
+    """Computes metrics for multiclass classification"""
+    predictions, references = eval_pred.predictions, eval_pred.label_ids
+    mask = references != -100
+    predictions = predictions[mask]
+    references = references[mask]
+    predictions_prob = softmax(predictions, axis=-1)
+    predictions_hard = np.argmax(predictions, axis=-1)
+
+    #metric calculation
+    #prob
+    roc_auc, buf = plot_roc(predictions_prob, references, 14)
+    pr_auc, buf1 = plot_pr(predictions_prob, references, 14)
+    roc_image = np.array(Image.open(buf))
+    pr_image = np.array(Image.open(buf1))
+    cm_image = plot_confusion_matrix(references, predictions_hard, class_names=[str(i) for i in range(14)])
+    #hard
+    #tn, fp, fn, tp = confusion_matrix(references, predictions_hard).ravel()
+    print(confusion_matrix(references, predictions_hard).ravel())
+    # Prepare results dictionary
+    r = {
+        'rocauc': roc_auc,
+        'roc_curve': wandb.Image(roc_image),
+        'pr_auc': pr_auc,
+        'pr_curve': wandb.Image(pr_image),
+        'confusion_matrix': wandb.Image(cm_image),
+        # 'tn': tn,
+        # 'fp': fp,
+        # 'fn': fn,
+        # 'tp': tp,
+        'mcc': matthews_corrcoef(references, predictions_hard),
+        'accuracy': accuracy_score(references, predictions_hard),
+        'f1': f1_score(references, predictions_hard, average='weighted'),
+        'precision': precision_score(references, predictions_hard, average='weighted'),
+        'recall': recall_score(references, predictions_hard, average='weighted'),
+        # 'tpr': tp/(tp+fn) ,
+        # 'fpr': fp/(fp+tn)
+    }
+
+    return r
 
 
 
@@ -93,9 +276,9 @@ def get_Data(csv_path, separator, input_sequence_col, label_col, tokenizer, chrm
 
 
     datasets = {
-        'train': Dataset.from_pandas(df.loc[df['chrm'].isin(chrm_split[split]['train'])][:500].assign(labels=lambda x: x['labels'].apply(ast.literal_eval))),
-        'val': Dataset.from_pandas(df.loc[df['chrm'].isin(chrm_split[split]['val'])][:500].assign(labels=lambda x: x['labels'].apply(ast.literal_eval))),
-        'test': Dataset.from_pandas(df.loc[df['chrm'].isin(chrm_split[split]['test'])][:500].assign(labels=lambda x: x['labels'].apply(ast.literal_eval)))
+        'train': Dataset.from_pandas(df.loc[df['chrm'].isin(chrm_split[split]['train'])][:5000].assign(labels=lambda x: x['labels'].apply(ast.literal_eval))),
+        'val': Dataset.from_pandas(df.loc[df['chrm'].isin(chrm_split[split]['val'])][:5000].assign(labels=lambda x: x['labels'].apply(ast.literal_eval))),
+        'test': Dataset.from_pandas(df.loc[df['chrm'].isin(chrm_split[split]['test'])][:5000].assign(labels=lambda x: x['labels'].apply(ast.literal_eval)))
     }
 
     for name, dataset in datasets.items():

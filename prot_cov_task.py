@@ -12,7 +12,7 @@ import numpy as np
 import pandas as pd
 import code
 ###imports
-from utils import tokenise_input_seq_and_labels, get_Data, compute_metrics
+from utils import tokenise_input_seq_and_labels, get_Data, compute_metrics_cov
 from output_processing import PredictionProcessor
 
 def load_config(config_file):
@@ -162,7 +162,7 @@ def main():
                         save_strategy=args.save_strategy,
                         save_steps=int(steps_per_epoch//4),
                         logging_strategy='steps',
-                        logging_steps= int(steps_per_epoch//4),
+                        logging_steps= int(steps_per_epoch//1),
                         learning_rate=args.learning_rate,
                         per_device_train_batch_size=args.batch_size,
                         gradient_accumulation_steps= args.gradient_accumulation_steps,
@@ -186,7 +186,7 @@ def main():
                         args=train_args,
                         train_dataset=train,
                         eval_dataset=val,
-                        compute_metrics=compute_metrics,
+                        compute_metrics=compute_metrics_cov,
                     )
                     trainer.train()
                     
@@ -219,8 +219,6 @@ def main():
                     output_df.to_csv(f"{out_str}/output.csv", index=False)
 
                     
-                    predictionprocessor=PredictionProcessor(f"{out_str}/output.csv", args.pkl_path)
-                    predictionprocessor.retrieve_orf_data_cov()
                     test_metrics = {f"test/{k}": v for k, v in output.metrics.items()}
 
                     
