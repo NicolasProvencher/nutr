@@ -124,30 +124,12 @@ def main():
                     model.print_trainable_parameters()
                     model.to(device)
                     #make data and tokenize it
-
                     print("Max Position Embeddings:", model.config.max_position_embeddings)
-
-
-
-
                     tokenizer = AutoTokenizer.from_pretrained(args.model_directory,trust_remote_code=True)
-
-
                     max_seq_length = tokenizer.model_max_length
                     print("Max Sequence Length:", max_seq_length)
-
-
+                    #get data and tokenize it
                     train, val, test=get_Data(args.input_file, args.separator, args.input_sequence_col, args.label_col, tokenizer, args.chrm_split, split)
-                    # print(f"count train {sum(1 for i in train['input_ids'] if len(i) > 1000)}")
-                    # print(f"count val {sum(1 for i in val['input_ids'] if len(i) > 1000)}")
-                    # print(f"count test {sum(1 for i in test['input_ids'] if len(i) > 1000)}")
-                    # print(f"trainseq   {train['input_ids'].shape}")
-                    # print(f"trainlab   {train['labels'].shape}")
-                    # if count > 0:
-                    #code.interact(local=locals())
-                    # print(len(train['input_ids']))
-                    # print(len(val['input_ids']))
-                    # print(len(test['input_ids']))
                     print(max([max(i) for i in train['labels']]))
                     #decide step and save strategy
                     steps_per_epoch = len(train) // (args.batch_size * args.gradient_accumulation_steps)
@@ -178,9 +160,6 @@ def main():
                         report_to=args.report_to,
                     )
 
-
-
-
                     trainer = Trainer(
                         model=model,
                         args=train_args,
@@ -201,11 +180,6 @@ def main():
                     filtered_pred = [subarray[mask[i]].tolist() for i, subarray in enumerate(am_pred)]
                     filtered_labels = [subarray[mask[i]].tolist() for i, subarray in enumerate(output.label_ids)]
                     #filtered_metrics = compute_metrics(filtered_pred, filtered_labels)
-
-                    # np.save('preditcions.npy', predictions)
-                    # np.save('pred_labels.npy', labels)
-                    # np.save('pred_in.npy', test['input_ids'])
-                    # np.save('pred_inlabels.npy', test['labels'])
 
                     output_dict={'t_name':test['transcript_name'],
                                 'input_ids':test['input_ids'],

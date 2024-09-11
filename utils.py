@@ -205,17 +205,11 @@ def compute_metrics_cov(eval_pred):
         'pr_auc': pr_auc,
         'pr_curve': wandb.Image(pr_image),
         'confusion_matrix': wandb.Image(cm_image),
-        # 'tn': tn,
-        # 'fp': fp,
-        # 'fn': fn,
-        # 'tp': tp,
         'mcc': matthews_corrcoef(references, predictions_hard),
         'accuracy': accuracy_score(references, predictions_hard),
         'f1': f1_score(references, predictions_hard, average='weighted'),
         'precision': precision_score(references, predictions_hard, average='weighted'),
         'recall': recall_score(references, predictions_hard, average='weighted'),
-        # 'tpr': tp/(tp+fn) ,
-        # 'fpr': fp/(fp+tn)
     }
 
     return r
@@ -229,10 +223,6 @@ def tokenise_input_seq_and_labels(example, max_length, tokenizer, label_name, se
     new_labels = []
     for i in range(0, len(labels), 6):
         segment = labels[i:i+6]
-        # if '1' in segment:
-        #     new_labels.append(1)
-        # else:            
-        #   new_labels.append(0)
         new_labels.append(int(max(segment)))
 
     if ((len(labels) % 6)) >1:
@@ -259,26 +249,18 @@ def tokenise_input_seq_and_labels(example, max_length, tokenizer, label_name, se
 
 def get_Data(csv_path, separator, input_sequence_col, label_col, tokenizer, chrm_split, split):
     max_length = tokenizer.model_max_length
-    print('max')
-    print(max_length)
-    print()
     df = pd.read_csv(csv_path, sep=separator, usecols=[input_sequence_col, label_col, 'chrm', 'transcript_name']).reset_index(drop=True)
     df['chrm'] = df['chrm'].astype(str)
-    print(df.shape)
+    print('pre ',df.shape)
     df = df[df['sequence'].apply(len) <= (max_length*6)-26]
-    print(df.shape)
-    #code.interact(local=locals())
+    print('post ',df.shape)
 
-    # chrm_split dict should be in the form:
-    # chrm_split={<split1>:{'train':[],'val':[],'test':[]},<split2>:{'train':[],'val':[],'test':[]}, ... }
-
-    #train=df.loc[df['chrm'].isin(chrm_split[split]['train'])][:500]
 
 
     datasets = {
-        'train': Dataset.from_pandas(df.loc[df['chrm'].isin(chrm_split[split]['train'])][:5000].assign(labels=lambda x: x['labels'].apply(ast.literal_eval))),
-        'val': Dataset.from_pandas(df.loc[df['chrm'].isin(chrm_split[split]['val'])][:5000].assign(labels=lambda x: x['labels'].apply(ast.literal_eval))),
-        'test': Dataset.from_pandas(df.loc[df['chrm'].isin(chrm_split[split]['test'])][:5000].assign(labels=lambda x: x['labels'].apply(ast.literal_eval)))
+        'train': Dataset.from_pandas(df.loc[df['chrm'].isin(chrm_split[split]['train'])].assign(labels=lambda x: x['labels'].apply(ast.literal_eval))),
+        'val': Dataset.from_pandas(df.loc[df['chrm'].isin(chrm_split[split]['val'])].assign(labels=lambda x: x['labels'].apply(ast.literal_eval))),
+        'test': Dataset.from_pandas(df.loc[df['chrm'].isin(chrm_split[split]['test'])].assign(labels=lambda x: x['labels'].apply(ast.literal_eval)))
     }
 
     for name, dataset in datasets.items():
@@ -286,83 +268,5 @@ def get_Data(csv_path, separator, input_sequence_col, label_col, tokenizer, chrm
         datasets[name] = datasets[name].remove_columns([ '__index_level_0__'])
         if name != 'test':
             datasets[name] = datasets[name].remove_columns(['transcript_name',input_sequence_col,'chrm','token'])
-    # a=[i for i in datasets['train'] if len(i['labels'])>1000]
-    # b=[i for i in datasets['val'] if len(i['labels'])>1000]
-    # c=[i for i in datasets['test'] if len(i['labels'])>1000]
     return datasets['train'], datasets['val'], datasets['test']
 
-
-# from transformers.modeling_utils import unwrap_model
-# from transformers.models.auto.modeling_auto import MODEL_FOR_CAUSAL_LM_MAPPING_NAMES
-
-# class CustomTrainer(Trainer):
-#     def __init__(self, model, args: TrainingArguments, label_weights=None, **kwargs):
-#         super().__init__(model, args, **kwargs)
-#         self.label_weights = label_weights
-
-#     def compute_loss(self, model, inputs, return_outputs=False):
-#         if self.label_smoother is not None and "labels" in inputs:
-#             labels = inputs.pop("labels")
-#         else:
-#             labels = None
-#         outputs = model(**inputs)
-
-#         if self.args.past_index >= 0:
-#             self._past = outputs[self.args.past_index]
-
-#         if labels is not None:
-#             # Apply weights to labels here
-#             if self.label_weights is not None:
-#                 weights = torch.tensor(self.label_weights)[labels]
-#                 labels = labels * weights
-
-#             if unwrap_model(model)._get_name() in MODEL_FOR_CAUSAL_LM_MAPPING_NAMES.values():
-#                 loss = self.label_smoother(outputs, labels, shift_labels=True)
-#             else:
-#                 loss = self.label_smoother(outputs, labels)
-#         else:
-#             if isinstance(outputs, dict) and "loss" not in outputs:
-#                 raise ValueError(
-#                     "The model did not return a loss from the inputs, only the following keys: "
-#                     f"{','.join(outputs.keys())}. For reference, the inputs it received are {','.join(inputs.keys())}."
-#                 )
-#             loss = outputs["loss"] if isinstance(outputs, dict) else outputs[0]
-
-#         return (loss, outputs) if return_outputs else loss
-    
-
-
-
-    '''
-
-    def compute_loss(self, model, inputs, return_outputs=False):
-        """
-        How the loss is computed by Trainer. By default, all models return the loss in the first element.
-
-        Subclass and override for custom behavior.
-        """
-        if self.label_smoother is not None and "labels" in inputs:
-            labels = inputs.pop("labels")
-        else:
-            labels = None
-        outputs = model(**inputs)
-
-        if self.args.past_index >= 0:
-            self._past = outputs[self.args.past_index]
-
-        if labels is not None:
-            if unwrap_model(model)._get_name() in MODEL_FOR_CAUSAL_LM_MAPPING_NAMES.values():
-                loss = self.label_smoother(outputs, labels, shift_labels=True)
-            else:
-                loss = self.label_smoother(outputs, labels)
-        else:
-            if isinstance(outputs, dict) and "loss" not in outputs:
-                raise ValueError(
-                    "The model did not return a loss from the inputs, only the following keys: "
-                    f"{','.join(outputs.keys())}. For reference, the inputs it received are {','.join(inputs.keys())}."
-                )
-            # We don't use .loss here since the model may return tuples instead of ModelOutput.
-            loss = outputs["loss"] if isinstance(outputs, dict) else outputs[0]
-
-        return (loss, outputs) if return_outputs else loss
-    '''

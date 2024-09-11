@@ -134,16 +134,9 @@ def main():
 
                     train, val, test=get_Data(args.input_file, args.separator, args.input_sequence_col, args.label_col, tokenizer, args.chrm_split, split)
 
-                    print(f"count train {sum(1 for i in train['input_ids'] if len(i) > 1000)}")
-                    print(f"count val {sum(1 for i in val['input_ids'] if len(i) > 1000)}")
-                    print(f"count test {sum(1 for i in test['input_ids'] if len(i) > 1000)}")
-                    # print(f"traineq   {train['input_ids'].shape}")
-                    # print(f"trainlab   {train['labels'].shape}")
-                    # if count > 0:
-                    #     code.interact(local=locals())
-                    # print(len(train['input_ids']))
-                    # print(len(val['input_ids']))
-                    # print(len(test['input_ids']))
+                    # print(f"count train {sum(1 for i in train['input_ids'] if len(i) > 1000)}")
+                    # print(f"count val {sum(1 for i in val['input_ids'] if len(i) > 1000)}")
+                    # print(f"count test {sum(1 for i in test['input_ids'] if len(i) > 1000)}")
 
 
                     #decide step and save strategy
@@ -189,7 +182,6 @@ def main():
                             outputs = model(**inputs)
                             logits = outputs.logits
                             labels = inputs['labels']
-                            #print(outputs)
                             # Mask for valid labels (not padding)
                             valid_mask = labels != -100
                             # Adjust logits and labels according to the valid mask
@@ -226,7 +218,6 @@ def main():
                     am_pred=np.argmax(output.predictions,axis=2)
                     filtered_pred = [subarray[mask[i]].tolist() for i, subarray in enumerate(am_pred)]
                     filtered_labels = [subarray[mask[i]].tolist() for i, subarray in enumerate(output.label_ids)]
-                    #filtered_metrics = compute_metrics(filtered_pred, filtered_labels)
 
                     # # np.save('preditcions.npy', predictions)
                     # # np.save('pred_labels.npy', labels)
