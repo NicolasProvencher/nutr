@@ -3,7 +3,7 @@ import torch.nn.functional as F
 import torch
 import numpy as np
 import wandb
-from datasets import Dataset
+from datasets import Dataset, load_from_disk
 from scipy.special import softmax
 import pandas as pd
 import code
@@ -16,7 +16,12 @@ import io
 from PIL import Image
 import PIL.ImageOps
 import seaborn as sns
+import sys
+from datasets import config
 
+# # Print the cache directory path
+# print(f"The Hugging Face datasets cache directory is: {config.HF_DATASETS_CACHE}")
+# sys.exit()
 
 
 def plot_roc(predictions_prob, references, n_classes):
@@ -218,7 +223,8 @@ def compute_metrics_cov(eval_pred):
 
 
 def tokenise_input_seq_and_labels(example, max_length, tokenizer, label_name, sequence_name):
-    
+    token=tokenizer(example[sequence_name],return_tensors="pt",padding="max_length", max_length = max_length)
+    #if len(token['input_ids'][0]) > max_length:
     labels = example[label_name]
     new_labels = []
     for i in range(0, len(labels), 6):
@@ -238,7 +244,6 @@ def tokenise_input_seq_and_labels(example, max_length, tokenizer, label_name, se
         labels_tensor = F.pad(labels_tensor, pad=(0, max_length - len(labels_tensor)), value=-100)
 
     example['labels'] = labels_tensor
-    token=tokenizer(example[sequence_name],return_tensors="pt",padding="max_length", max_length = max_length)
     example['input_ids'] = token['input_ids'][0]
     example['attention_mask'] = token['attention_mask'][0]
     example['token']=tokenizer.decode(token['input_ids'][0].tolist())
@@ -249,24 +254,44 @@ def tokenise_input_seq_and_labels(example, max_length, tokenizer, label_name, se
 
 def get_Data(csv_path, separator, input_sequence_col, label_col, tokenizer, chrm_split, split):
     max_length = tokenizer.model_max_length
-    df = pd.read_csv(csv_path, sep=separator, usecols=[input_sequence_col, label_col, 'chrm', 'transcript_name']).reset_index(drop=True)
-    df['chrm'] = df['chrm'].astype(str)
-    print('pre ',df.shape)
-    df = df[df['sequence'].apply(len) <= (max_length*6)-26]
-    print('post ',df.shape)
+    if csv_path.endswith('.csv'):
+        df = pd.read_csv(csv_path, sep=separator, usecols=[input_sequence_col, label_col, 'chrm', 'transcript_name']).reset_index(drop=True)
+        df['chrm'] = df['chrm'].astype(str)
+        print('pre ',df.shape)
+        df = df[df['sequence'].apply(len) <= (max_length*6)-26]
+        print('post ',df.shape)
+        datasets = {
+            'train': Dataset.from_pandas(df.loc[df['chrm'].isin(chrm_split[split]['train'])].assign(labels=lambda x: x['labels'].apply(ast.literal_eval))),
+            'val': Dataset.from_pandas(df.loc[df['chrm'].isin(chrm_split[split]['val'])].assign(labels=lambda x: x['labels'].apply(ast.literal_eval))),
+            'test': Dataset.from_pandas(df.loc[df['chrm'].isin(chrm_split[split]['test'])].assign(labels=lambda x: x['labels'].apply(ast.literal_eval)))
+        }
+    elif csv_path.endswith('.dts'):
+        dataset = load_from_disk(csv_path)
 
+        # Get the entire 'chrm' column at once for efficient batch filtering
+        chrm_column = dataset['chrm']
 
+        # Create boolean masks for filtering
+        mask1 = [chrm in chrm_split[split]['train'] for chrm in chrm_column]
+        mask2 = [chrm in chrm_split[split]['val'] for chrm in chrm_column]
+        mask3 = [chrm in chrm_split[split]['test'] for chrm in chrm_column]
 
-    datasets = {
-        'train': Dataset.from_pandas(df.loc[df['chrm'].isin(chrm_split[split]['train'])].assign(labels=lambda x: x['labels'].apply(ast.literal_eval))),
-        'val': Dataset.from_pandas(df.loc[df['chrm'].isin(chrm_split[split]['val'])].assign(labels=lambda x: x['labels'].apply(ast.literal_eval))),
-        'test': Dataset.from_pandas(df.loc[df['chrm'].isin(chrm_split[split]['test'])].assign(labels=lambda x: x['labels'].apply(ast.literal_eval)))
-    }
-
+        # Use boolean indexing to split the dataset
+        datasets = {'train' : dataset.select([i for i, x in enumerate(mask1) if x]), 
+                    'val' : dataset.select([i for i, x in enumerate(mask2) if x]),
+                    'test' : dataset.select([i for i, x in enumerate(mask3) if x])
+                    }
+    else:
+        raise ValueError('input File format not supported')
     for name, dataset in datasets.items():
-        datasets[name] = dataset.map(tokenise_input_seq_and_labels, fn_kwargs={"label_name": label_col, "sequence_name": input_sequence_col, "max_length": max_length, "tokenizer": tokenizer})
-        datasets[name] = datasets[name].remove_columns([ '__index_level_0__'])
+        datasets[name] = dataset.map(tokenise_input_seq_and_labels, fn_kwargs={"label_name": label_col, "sequence_name": input_sequence_col, "max_length": max_length, "tokenizer": tokenizer}, num_proc=24)
+        datasets[name] = datasets[name].filter(lambda example: len(example['input_ids']) <= 1000)
+        if csv_path.endswith('.csv'):
+            datasets[name] = datasets[name].remove_columns([ '__index_level_0__'])
         if name != 'test':
             datasets[name] = datasets[name].remove_columns(['transcript_name',input_sequence_col,'chrm','token'])
+        #test line
+        # if name == 'val':
+        #     datasets[name] =  datasets[name].select(range(min(1000, len(datasets[name]))))
     return datasets['train'], datasets['val'], datasets['test']
 

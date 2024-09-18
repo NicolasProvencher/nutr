@@ -144,7 +144,7 @@ def main():
                         save_strategy=args.save_strategy,
                         save_steps=int(steps_per_epoch//4),
                         logging_strategy='steps',
-                        logging_steps= int(steps_per_epoch//1),
+                        logging_steps= int(steps_per_epoch//100),
                         learning_rate=args.learning_rate,
                         per_device_train_batch_size=args.batch_size,
                         gradient_accumulation_steps= args.gradient_accumulation_steps,
@@ -154,7 +154,7 @@ def main():
                         metric_for_best_model=args.metric_for_best_model,
                         label_names=['labels'],
                         dataloader_drop_last=args.dataloader_drop_last,
-                        max_steps= steps_per_epoch,
+                        max_steps= steps_per_epoch * args.num_train_epochs,
                         auto_find_batch_size=False,
                         disable_tqdm=True,
                         report_to=args.report_to,
@@ -188,7 +188,9 @@ def main():
                                 'labels':test['labels'],
                                 'predictions':filtered_pred,
                                 'true_labels':filtered_labels,
-                                'sequence':test[args.input_sequence_col]}
+                                'sequence':test[args.input_sequence_col],
+                                'logits':output.predictions
+                                }
                     output_df = pd.DataFrame(output_dict)
                     output_df.to_csv(f"{out_str}/output.csv", index=False)
 
